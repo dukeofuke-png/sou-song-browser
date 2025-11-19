@@ -3,10 +3,13 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
-// Enable CORS for React dev server
-app.use(cors());
+// Enable CORS for all origins (Vercel + local dev)
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 
 // Materials base path (Google Drive)
 const MATERIALS_BASE = path.join(

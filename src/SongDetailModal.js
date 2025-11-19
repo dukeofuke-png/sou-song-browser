@@ -12,9 +12,11 @@ function SongDetailModal({ song, onClose }) {
     const match = filePath.match(/Song Sheets PDF ONLY - School of Uke\/(.+)$/);
     if (match) {
       const relativePath = match[1];
+      // Materials server URL (Railway in prod, localhost in dev)
+      const materialsBaseUrl = process.env.REACT_APP_MATERIALS_URL || 'http://localhost:3001';
       // URL encode the path
       const encodedPath = relativePath.split('/').map(encodeURIComponent).join('/');
-      return `http://localhost:3001/materials/${encodedPath}`;
+      return `${materialsBaseUrl}/materials/${encodedPath}`;
     }
     return null;
   };
