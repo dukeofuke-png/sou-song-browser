@@ -1,0 +1,261 @@
+.bulk-import {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 20px;
+}
+
+.import-header {
+  max-width: 1000px;
+  margin: 0 auto 20px;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.import-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #333;
+}
+
+.import-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 30px;
+}
+
+.import-input {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-section h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.help-text {
+  margin: 0 0 15px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.import-input textarea {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  resize: vertical;
+}
+
+.import-input textarea:focus {
+  outline: none;
+  border-color: #FF6B35;
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+}
+
+.import-input textarea:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.results-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.results-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.result-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.result-item:hover {
+  background: #f9f9f9;
+}
+
+.result-item.selected {
+  border-color: #FF6B35;
+  background: #FFF8F0;
+}
+
+.result-item input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.result-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #333;
+}
+
+.result-artist {
+  font-size: 14px;
+  color: #666;
+}
+
+.result-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.meta-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: #e3f2fd;
+  color: #1976d2;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.result-original {
+  font-size: 12px;
+  color: #999;
+  font-family: 'Courier New', monospace;
+}
+
+.result-status {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.result-status.ready {
+  background: #d4edda;
+  color: #155724;
+}
+
+.result-status.found {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.result-status.error {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  background: #FF6B35;
+  color: white;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #E85A2A;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+}
+
+.btn-primary:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 10px 20px;
+  background: white;
+  color: #666;
+  border: 2px solid #FFE9C4;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #FFFBF5;
+  border-color: #FF6B35;
+  color: #FF6B35;
+}
+
+.btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.btn-close:hover:not(:disabled) {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.btn-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

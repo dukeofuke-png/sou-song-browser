@@ -1,0 +1,26 @@
+.ai-helper { border: 2px solid #e0e0e0; padding: 16px; border-radius: 10px; background: #fafafa; margin-top: 20px; }
+.ai-helper h3 { margin-top: 0; font-size: 18px; }
+.ai-input-row { display: flex; gap: 8px; }
+.ai-input-row input { flex: 1; padding: 10px 12px; border: 2px solid #d0d0d0; border-radius: 6px; font-size: 14px; }
+.ai-input-row input:focus { outline: none; border-color: #007bff; }
+.ai-run-btn { background: #007bff; color: #fff; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+.ai-run-btn:disabled { background: #9bbef0; cursor: not-allowed; }
+.ai-error { margin-top: 12px; background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; font-size: 13px; }
+.ai-results { margin-top: 16px; }
+.ai-meta { font-size: 13px; color: #555; margin-bottom: 8px; }
+.ai-suggestions { display: flex; flex-direction: column; gap: 10px; }
+.ai-suggestion { background: #fff; border: 1px solid #e0e0e0; padding: 10px 12px; border-radius: 6px; display: flex; flex-direction: column; gap: 4px; }
+.ai-suggestion .desc { font-size: 14px; font-weight: 500; }
+.ai-suggestion-meta { font-size: 11px; color: #444; display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-conf { color: #0d6efd; }
+.ai-reason { color: #6c757d; }
+.ai-params { color: #20c997; }
+.ai-source-pref { margin-left: 6px; font-size: 11px; color: #0d6efd; }
+.ai-action { align-self: flex-start; }
+.ai-action { background: #28a745; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.ai-action:hover { background: #218838; }
+.ai-parsed { margin-top: 12px; background: #f0f4f8; padding: 10px; border-radius: 6px; font-size: 12px; overflow: auto; }
+.ai-parsed-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.ai-toggle-raw { background: #6c757d; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+.ai-toggle-raw:hover { background: #5a6268; }
+.ai-raw-json { margin-top: 8px; background: #fff; border: 1px solid #d0d0d0; padding: 8px; border-radius: 4px; }

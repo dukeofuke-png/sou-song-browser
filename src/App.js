@@ -1,9 +1,13 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 
-import songsData from "./data/songs_app_export_merged.json";
 import SongDetailModal from "./SongDetailModal";
+import AdminLogin from "./components/AdminLogin";
+import AdminDashboard from "./components/AdminDashboard";
 
 import logo from "./assets/sou-logo.png";
+
+// API configuration
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3002';
 
 function formatMaterialStatus(raw) {
   const v = (raw || "").trim().toLowerCase();
@@ -28,7 +32,17 @@ function formatMaterialStatus(raw) {
 
 
 function App() {
-  const songs = Array.isArray(songsData) ? songsData : [];
+  // ALL hooks must be at the top level - before any returns
+  // Admin state
+  const [isAdminRoute, setIsAdminRoute] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Public song browser state
+  const [songs, setSongs] = useState([]);
+  const [songsLoading, setSongsLoading] = useState(true);
+  const [songsError, setSongsError] = useState(null);
+  
   const [search, setSearch] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
   const [keyFilter, setKeyFilter] = useState("all");
@@ -38,8 +52,6 @@ function App() {
   const [genreFilter, setGenreFilter] = useState("all");
   const [chartFilter, setChartFilter] = useState("all");
   const [selectedSong, setSelectedSong] = useState(null);
-
-
 
   const keys = useMemo(() => {
     const set = new Set();
@@ -53,8 +65,7 @@ function App() {
     return Array.from(set).sort();
   }, [songs]);
 
-
-    const eras = useMemo(() => {
+  const eras = useMemo(() => {
     const set = new Set();
     songs.forEach((song) => {
       const era = (song.era || "").trim();
@@ -63,7 +74,7 @@ function App() {
     return Array.from(set).sort();
   }, [songs]);
 
-    const seasons = useMemo(() => {
+  const seasons = useMemo(() => {
     const set = new Set();
     songs.forEach((song) => {
       const season = (song.season || "").trim();
@@ -72,32 +83,117 @@ function App() {
     return Array.from(set).sort();
   }, [songs]);
 
-    const genres = useMemo(() => {
-  const set = new Set();
+  const genres = useMemo(() => {
+    const set = new Set();
 
-  songs.forEach((song) => {
-    if (!song) return;
+    songs.forEach((song) => {
+      if (!song) return;
 
-    // In our JSON, genre should be an array. Be defensive anyway.
-    if (Array.isArray(song.genre)) {
-      song.genre.forEach((g) => {
-        const trimmed = (g || "").trim();
-        if (trimmed) set.add(trimmed);
-      });
-    } else if (song.genre) {
-      String(song.genre)
-        .split(",")
-        .map((g) => g.trim())
-        .forEach((g) => {
-          if (g) set.add(g);
+      // In our JSON, genre should be an array. Be defensive anyway.
+      if (Array.isArray(song.genre)) {
+        song.genre.forEach((g) => {
+          const trimmed = (g || "").trim();
+          if (trimmed) set.add(trimmed);
         });
+      } else if (song.genre) {
+        String(song.genre)
+          .split(",")
+          .map((g) => g.trim())
+          .forEach((g) => {
+            if (g) set.add(g);
+          });
+      }
+    });
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [songs]);
+
+  // Fetch songs from API on mount
+  useEffect(() => {
+    const fetchSongs = async () => {
+      try {
+        setSongsLoading(true);
+        const response = await fetch(`${API_URL}/songs`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch songs: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setSongs(Array.isArray(data) ? data : []);
+        setSongsError(null);
+      } catch (err) {
+        console.error('Error fetching songs:', err);
+        setSongsError(err.message);
+        setSongs([]);
+      } finally {
+        setSongsLoading(false);
+      }
+    };
+    
+    fetchSongs();
+  }, []);
+
+  // Check for admin route and authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Dev mode: always authenticated
+        if (process.env.NODE_ENV !== 'production') {
+          setIsAuthenticated(true);
+          setCheckingAuth(false);
+          return;
+        }
+        
+        const response = await fetch(`${API_URL}/api/auth/check`, {
+          credentials: 'include',
+        });
+        setIsAuthenticated(response.ok);
+      } catch (err) {
+        setIsAuthenticated(false);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+
+    const path = window.location.pathname;
+    setIsAdminRoute(path.startsWith('/admin'));
+
+    // Check if already authenticated
+    if (path.startsWith('/admin')) {
+      checkAuth();
+    } else {
+      setCheckingAuth(false);
     }
-  });
+  }, []);
 
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
-}, [songs]);
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
 
-const filteredSongs = songs.filter((song) => {
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+  };
+
+  // Admin routing - now AFTER all hooks
+  if (isAdminRoute) {
+    if (checkingAuth) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <p>Loading...</p>
+        </div>
+      );
+    }
+
+    if (!isAuthenticated) {
+      return <AdminLogin onLoginSuccess={handleLoginSuccess} />;
+    }
+
+    return <AdminDashboard onLogout={handleLogout} />;
+  }
+
+  // Public song browser filters
+  const filteredSongs = songs.filter((song) => {
   const query = search.trim().toLowerCase();
 
   // Text search: title, artist, songwriters
@@ -222,26 +318,37 @@ const filteredSongs = songs.filter((song) => {
       </header>
 
       <div className="app-content">
-        <p>Total songs in database: {songs.length}</p>
+        {songsLoading ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>Loading songs from database...</p>
+          </div>
+        ) : songsError ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#d32f2f' }}>
+            <p>❌ Error loading songs: {songsError}</p>
+            <p>Make sure the server is running on port 3002</p>
+          </div>
+        ) : (
+          <>
+            <p>Total songs in database: {songs.length}</p>
 
-        {/* Search box + filters */}
-        <div
-          style={{
-            marginBottom: "1rem",
-            display: "flex",
-            gap: "1rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <input
-            type="text"
-            placeholder="Search by song, artist or songwriter…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ padding: "0.5rem", minWidth: "260px" }}
-          />
+            {/* Search box + filters */}
+            <div
+              style={{
+                marginBottom: "1rem",
+                display: "flex",
+                gap: "1rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Search by song, artist or songwriter…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ padding: "0.5rem", minWidth: "260px" }}
+              />
 
-          <select
+              <select
             value={levelFilter}
             onChange={(e) => setLevelFilter(e.target.value)}
             style={{ padding: "0.5rem" }}
@@ -397,6 +504,8 @@ const filteredSongs = songs.filter((song) => {
             song={selectedSong} 
             onClose={() => setSelectedSong(null)} 
           />
+        )}
+          </>
         )}
       </div>
     </div>
