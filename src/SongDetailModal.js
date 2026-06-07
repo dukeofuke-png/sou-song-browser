@@ -422,7 +422,19 @@ function SongDetailModal({ song, onClose }) {
           {/* 4. AVAILABLE MATERIALS */}
           <section className="detail-section">
             <h4>Available Materials</h4>
-            {song.materials && song.materials.length > 0 ? (
+            {song.songSheetPath && song.songSheetPath.startsWith('https://') ? (
+              // R2 direct link — song sheet uploaded to Cloudflare R2
+              <div className="external-links" style={{ marginTop: 0 }}>
+                <a
+                  href={song.songSheetPath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >
+                  📄 Song Sheet
+                </a>
+              </div>
+            ) : song.materials && song.materials.length > 0 ? (
               <div className="external-links" style={{ marginTop: 0 }}>
                 {song.materials.map((material, index) => {
                   const url = buildMaterialsUrl(material.relativePath);
