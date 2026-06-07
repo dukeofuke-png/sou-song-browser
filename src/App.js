@@ -85,6 +85,8 @@ function App() {
 
   const genres = useMemo(() => {
     const set = new Set();
+    const toTitleCase = (str) =>
+      str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
     songs.forEach((song) => {
       if (!song) return;
@@ -93,14 +95,14 @@ function App() {
       if (Array.isArray(song.genre)) {
         song.genre.forEach((g) => {
           const trimmed = (g || "").trim();
-          if (trimmed) set.add(trimmed);
+          if (trimmed) set.add(toTitleCase(trimmed));
         });
       } else if (song.genre) {
         String(song.genre)
           .split(",")
           .map((g) => g.trim())
           .forEach((g) => {
-            if (g) set.add(g);
+            if (g) set.add(toTitleCase(g));
           });
       }
     });
