@@ -482,7 +482,7 @@ function App() {
                       {Array.isArray(song.genre) ? song.genre.join(", ") : song.genre}
                     </Td>
                     <Td center>{song.season}</Td>
-                    <Td center>{song.mode}</Td>
+                    <Td center>{song.mode ? song.mode.charAt(0).toUpperCase() + song.mode.slice(1).toLowerCase() : ''}</Td>
                     <Td center>{song.originalKey}</Td>
                     <Td center>{song.level ?? ""}</Td>
                     <Td center>{song.numChords ?? ""}</Td>
