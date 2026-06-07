@@ -220,7 +220,7 @@ const AdminDashboard = ({ onLogout }) => {
           <div className="stat-card">
             <div className="stat-icon"><FiFileText size={36} color="#FF6B35" /></div>
             <div className="stat-content">
-              <h3>{songs.filter(s => s['Song Sheet Path'] || s.songSheetPath || s.songSheetStatus === 'Yes' || s.songSheetStatus === 'TRUE').length}</h3>
+              <h3>{songs.filter(s => s.songSheetPath && s.songSheetPath.startsWith('https://')).length}</h3>
               <p>With PDFs</p>
             </div>
           </div>
@@ -325,7 +325,7 @@ const AdminDashboard = ({ onLogout }) => {
                         ✏️
                       </button>
                       <button
-                        onClick={() => handleDeleteSong(index)}
+                        onClick={() => handleDeleteSong(song.id)}
                         className="btn-delete"
                         title="Delete"
                       >
