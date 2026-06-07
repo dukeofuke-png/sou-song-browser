@@ -87,6 +87,7 @@ function App() {
     const set = new Set();
     const toTitleCase = (str) =>
       str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    const isDecade = (str) => /^\d+0s$/i.test(str.trim());
 
     songs.forEach((song) => {
       if (!song) return;
@@ -95,14 +96,14 @@ function App() {
       if (Array.isArray(song.genre)) {
         song.genre.forEach((g) => {
           const trimmed = (g || "").trim();
-          if (trimmed) set.add(toTitleCase(trimmed));
+          if (trimmed && !isDecade(trimmed)) set.add(toTitleCase(trimmed));
         });
       } else if (song.genre) {
         String(song.genre)
           .split(",")
           .map((g) => g.trim())
           .forEach((g) => {
-            if (g) set.add(toTitleCase(g));
+            if (g && !isDecade(g)) set.add(toTitleCase(g));
           });
       }
     });
