@@ -4,6 +4,7 @@ import SeedDatabaseSearch from './SeedDatabaseSearch';
 import BulkAddSongs from './BulkAddSongs';
 import ManageSOUDatabase from './ManageSOUDatabase';
 import SongEditor from './SongEditor';
+import ConversationWorkspace from './ConversationWorkspace';
 import { FiMusic, FiHome, FiFileText } from 'react-icons/fi';
 import './AdminDashboard.css';
 
@@ -176,6 +177,9 @@ const AdminDashboard = ({ onLogout }) => {
       
       case 'bulk-add':
         return <BulkAddSongs />;
+      
+      case 'conversation':
+        return <ConversationWorkspace />;
       
       case 'manage-sou':
         return <ManageSOUDatabase />;

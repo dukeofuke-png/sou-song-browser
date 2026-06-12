@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiHome, FiSearch, FiMusic, FiSettings, FiLogOut, FiChevronDown, FiChevronRight, FiUpload } from 'react-icons/fi';
+import { FiHome, FiSearch, FiMusic, FiSettings, FiLogOut, FiChevronDown, FiChevronRight, FiUpload, FiMessageSquare } from 'react-icons/fi';
 import './AdminLayout.css';
 
 /**
@@ -14,6 +14,11 @@ function AdminLayout({ children, activePage, onNavigate, onLogout }) {
       id: 'dashboard', 
       icon: <FiHome />, 
       label: 'Dashboard' 
+    },
+    {
+      id: 'conversation',
+      icon: <FiMessageSquare />,
+      label: 'Conversation'
     },
     { 
       id: 'discovery', 
