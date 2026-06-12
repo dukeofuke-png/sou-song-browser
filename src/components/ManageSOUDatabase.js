@@ -24,6 +24,8 @@ const ManageSOUDatabase = () => {
   const [editFormData, setEditFormData] = useState({});
   const [inlineEditCell, setInlineEditCell] = useState(null); // { songId, columnKey }
   const [inlineEditValue, setInlineEditValue] = useState('');
+  const [enrichingSongs, setEnrichingSongs] = useState(new Set()); // song IDs currently being enriched
+  const [enrichResults, setEnrichResults] = useState({}); // songId -> { success, enrichmentCount, error }
 
   // Default visible columns
   const defaultColumns = [
@@ -592,6 +594,48 @@ const ManageSOUDatabase = () => {
     setEditModalOpen(false);
     setEditingSong(null);
     setEditFormData({});
+  };
+
+  // Enrich a song via the rich pipeline (Wikipedia, Last.fm, GetSongBPM, Soundcharts)
+  const handleEnrichSong = async (songId, e) => {
+    if (e) e.stopPropagation();
+    if (enrichingSongs.has(songId)) return; // already running
+
+    setEnrichingSongs(prev => new Set([...prev, songId]));
+    setEnrichResults(prev => ({ ...prev, [songId]: null }));
+
+    try {
+      const response = await fetch(`${API_URL}/api/songs/${songId}/enrich`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Enrichment failed');
+      }
+
+      if (data.success && data.song) {
+        // Merge updated fields into local song list
+        setSongs(prev => prev.map(s => (s.id === songId ? { ...s, ...data.song } : s)));
+        // Also update the edit modal if this song is open
+        setEditFormData(prev => prev.id === songId ? { ...prev, ...data.song } : prev);
+      }
+
+      setEnrichResults(prev => ({
+        ...prev,
+        [songId]: { success: data.success, enrichmentCount: data.enrichmentCount, message: data.message }
+      }));
+    } catch (err) {
+      console.error('Enrich error:', err);
+      setEnrichResults(prev => ({ ...prev, [songId]: { success: false, error: err.message } }));
+    } finally {
+      setEnrichingSongs(prev => {
+        const next = new Set(prev);
+        next.delete(songId);
+        return next;
+      });
+    }
   };
 
   // Inline edit: double-click cell
@@ -1344,6 +1388,20 @@ const ManageSOUDatabase = () => {
               <button className="btn-secondary" onClick={handleCancelEdit}>
                 Cancel
               </button>
+              <button
+                className={`btn-enrich${enrichingSongs.has(editFormData.id) ? ' enriching' : ''}${enrichResults[editFormData.id]?.success ? ' enriched' : ''}`}
+                onClick={(e) => handleEnrichSong(editFormData.id, e)}
+                disabled={enrichingSongs.has(editFormData.id)}
+                title="Fetch Wikipedia, Last.fm, chart data and BPM for this song"
+              >
+                {enrichingSongs.has(editFormData.id)
+                  ? '⏳ Enriching…'
+                  : enrichResults[editFormData.id]?.success
+                  ? `✅ Enriched (${enrichResults[editFormData.id].enrichmentCount} fields)`
+                  : enrichResults[editFormData.id]?.success === false
+                  ? `❌ ${enrichResults[editFormData.id].error || enrichResults[editFormData.id].message || 'No data found'}`
+                  : '⚡ Enrich Song'}
+              </button>
               <button className="btn-primary" onClick={handleSaveEdit}>
                 <FiSave /> Save Changes
               </button>
@@ -1380,6 +1438,7 @@ const ManageSOUDatabase = () => {
                     onChange={toggleSelectAll}
                   />
                 </th>
+                <th className="action-col" title="Enrich song with Wikipedia, Last.fm, and chart data">⚡</th>
                 {orderedVisibleColumns.map(colKey => {
                   const colMeta = availableColumns[colKey];
                   const isSortable = colMeta.sortable;
@@ -1430,6 +1489,19 @@ const ManageSOUDatabase = () => {
                       checked={selectedSongs.has(song.id)}
                       onChange={() => toggleSongSelection(song.id)}
                     />
+                  </td>
+                  <td
+                    className="action-col"
+                    onClick={(e) => e.stopPropagation()}
+                    title={enrichResults[song.id]?.success ? `Enriched: ${enrichResults[song.id].enrichmentCount} fields updated` : enrichResults[song.id]?.error ? enrichResults[song.id].error : 'Enrich with Wikipedia, Last.fm & chart data'}
+                  >
+                    <button
+                      className={`enrich-btn${enrichingSongs.has(song.id) ? ' enriching' : ''}${enrichResults[song.id]?.success ? ' enriched' : ''}${enrichResults[song.id]?.success === false ? ' enrich-failed' : ''}`}
+                      onClick={(e) => handleEnrichSong(song.id, e)}
+                      disabled={enrichingSongs.has(song.id)}
+                    >
+                      {enrichingSongs.has(song.id) ? '⏳' : enrichResults[song.id]?.success ? '✅' : enrichResults[song.id]?.success === false ? '❌' : '⚡'}
+                    </button>
                   </td>
                   {orderedVisibleColumns.map(colKey => {
                     const colMeta = availableColumns[colKey];

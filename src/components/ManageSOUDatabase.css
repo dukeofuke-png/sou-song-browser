@@ -156,6 +156,44 @@
   color: #FF6B35;
 }
 
+/* Enrich button in dialog footer */
+.btn-enrich {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border: 2px solid #7c3aed;
+  color: #7c3aed;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-enrich:hover:not(:disabled) {
+  background: #7c3aed;
+  color: white;
+}
+
+.btn-enrich:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.btn-enrich.enriched {
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+.btn-enrich.enriching {
+  border-color: #d97706;
+  color: #d97706;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+
 .btn-primary {
   display: flex;
   align-items: center;
@@ -613,6 +651,53 @@
   height: 18px;
   cursor: pointer;
 }
+
+/* Enrich action column */
+.action-col {
+  width: 42px;
+  text-align: center;
+  padding: 0 4px;
+}
+
+.enrich-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.15s;
+  opacity: 0.6;
+}
+
+.enrich-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+  opacity: 1;
+}
+
+.enrich-btn:disabled {
+  cursor: default;
+}
+
+.enrich-btn.enriching {
+  opacity: 1;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.enrich-btn.enriched {
+  opacity: 1;
+}
+
+.enrich-btn.enrich-failed {
+  opacity: 0.8;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 
 /* Status Badges */
 .status-badge {
