@@ -9,6 +9,7 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3002';
  */
 function SeedDatabaseSearch() {
   // Search criteria
+  const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [yearStart, setYearStart] = useState('');
   const [yearEnd, setYearEnd] = useState('');
@@ -35,6 +36,7 @@ function SeedDatabaseSearch() {
 
       // Build search payload
       const filters = {};
+      if (title.trim()) filters.title = title.trim();
       if (artist.trim()) filters.artist = artist.trim();
       if (yearStart) filters.yearStart = parseInt(yearStart);
       if (yearEnd) filters.yearEnd = parseInt(yearEnd);
@@ -160,12 +162,24 @@ function SeedDatabaseSearch() {
               <h3>Search Criteria</h3>
               
               <div className="form-group">
+                <label>Title</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Like a Virgin, Wonderwall"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+
+              <div className="form-group">
                 <label>Artist</label>
                 <input
                   type="text"
                   placeholder="e.g., The Beatles, Adele"
                   value={artist}
                   onChange={(e) => setArtist(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
 
