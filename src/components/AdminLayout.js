@@ -32,7 +32,7 @@ function AdminLayout({ children, activePage, onNavigate, onLogout }) {
     { 
       id: 'manage-sou', 
       icon: <FiMusic />, 
-      label: 'Manage SOU Database' 
+      label: 'Manage SOU Catalog' 
     },
     { 
       id: 'settings', 

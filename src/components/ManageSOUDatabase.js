@@ -722,7 +722,7 @@ const ManageSOUDatabase = () => {
       <div className="page-header">
         <div className="header-content">
           <h1>
-            <FiMusic /> Manage SOU Database
+            <FiMusic /> Manage SOU Catalog
           </h1>
           <p>View and manage your teaching song collection ({songs.length} songs)</p>
         </div>
