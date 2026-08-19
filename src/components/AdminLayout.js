@@ -18,7 +18,7 @@ function AdminLayout({ children, activePage, onNavigate, onLogout }) {
     {
       id: 'conversation',
       icon: <FiMessageSquare />,
-      label: 'Conversation'
+      label: 'Studio Chat'
     },
     { 
       id: 'discovery', 
