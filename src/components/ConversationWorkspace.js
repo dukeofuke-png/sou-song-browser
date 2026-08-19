@@ -189,7 +189,7 @@ function ConversationWorkspace() {
       {/* ── Conversation list sidebar ── */}
       <aside className="conv-sidebar">
         <div className="conv-sidebar-header">
-          <h2>Conversations</h2>
+          <h2>Chats</h2>
           <button
             className="btn-new-conv"
             onClick={handleNewConversation}
