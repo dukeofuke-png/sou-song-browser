@@ -215,8 +215,13 @@ function SongDetailModal({ song, onClose }) {
                   className="external-link"
                 >Spotify Track</a>
               )}
-              {song.youtubeUrl ? (
-                <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer" className="external-link">YouTube</a>
+              {(song.youtubeUrl || song.youtubeVideoId) ? (
+                <a
+                  href={song.youtubeUrl || `https://youtu.be/${song.youtubeVideoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="external-link"
+                >YouTube</a>
               ) : (
                 <span className="external-link" style={{ opacity: 0.6 }}>YouTube: (pending)</span>
               )}
