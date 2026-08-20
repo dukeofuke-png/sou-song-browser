@@ -40,7 +40,8 @@ const ManageSOUDatabase = () => {
     'originalKey',
     'mode',
     'bpm',
-    'spotifyPopularity'
+    'spotifyPopularity',
+    'enrichmentStatus'
   ];
 
   const [visibleColumns, setVisibleColumns] = useState(new Set(defaultColumns));
@@ -54,6 +55,7 @@ const ManageSOUDatabase = () => {
     year: { label: 'Year', width: '80px', group: 'Core', searchable: true, sortable: true, editable: false, source: 'API' },
     releaseDate: { label: 'Release Date', width: '120px', group: 'Core', searchable: true, sortable: true, editable: true, source: 'Override' },
     season: { label: 'Season', width: '100px', group: 'Core', searchable: true, sortable: true, editable: false, source: 'API' },
+    enrichmentStatus: { label: 'Enrichment', width: '110px', group: 'Core', searchable: false, sortable: true, editable: false, source: 'API' },
     
     // Classification
     genre: { label: 'Genre', width: '200px', group: 'Classification', searchable: true, sortable: true, editable: true, source: 'Augment' },
@@ -392,6 +394,16 @@ const ManageSOUDatabase = () => {
       } else if (status === 'draft') {
         return <span className="status-badge draft">Draft</span>;
       }
+      return value;
+    }
+
+    // Background rich-enrichment status (set after promotion; null until then)
+    if (columnKey === 'enrichmentStatus') {
+      if (!value) return '—';
+      const status = String(value).toLowerCase();
+      if (status === 'complete') return <span className="status-badge yes">Complete</span>;
+      if (status === 'failed') return <span className="status-badge no">Failed</span>;
+      if (status === 'pending') return <span className="status-badge draft">Enriching…</span>;
       return value;
     }
 
