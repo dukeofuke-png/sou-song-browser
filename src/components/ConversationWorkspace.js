@@ -4,6 +4,28 @@ import './ConversationWorkspace.css';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3002';
 
+// STUDIO-01 backstop: catches raw tool-response JSON slipping through as message
+// content (backend guard in aiProvider.js should prevent this — this is a safety
+// net only, so it should rarely if ever trigger).
+const KNOWN_TOOL_RESPONSE_KEYS = new Set([
+  'results', 'count', 'message', 'success', 'alreadyExisted', 'error',
+  'songId', 'title', 'artist', 'spotifyId', 'genres', 'releaseYear', 'popularity',
+]);
+
+function looksLikeRawToolJson(content) {
+  const trimmed = (content || '').trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return false;
+  }
+  if (parsed === null || typeof parsed !== 'object') return false;
+  const keys = Object.keys(parsed);
+  return keys.length > 0 && keys.every(k => KNOWN_TOOL_RESPONSE_KEYS.has(k));
+}
+
 function ConversationWorkspace() {
   const [conversations, setConversations] = useState([]);
   const [activeConvId, setActiveConvId] = useState(null);
@@ -251,7 +273,9 @@ function ConversationWorkspace() {
               className={`conv-message ${msg.role === 'tutor' ? 'tutor' : 'assistant'}`}
             >
               <div className="conv-message-bubble">
-                {msg.content}
+                {msg.role === 'assistant' && looksLikeRawToolJson(msg.content)
+                  ? 'Something went wrong generating a response — please try again.'
+                  : msg.content}
               </div>
               <div className="conv-message-meta">
                 {msg.role === 'tutor' ? 'You' : 'SOU Assistant'}
