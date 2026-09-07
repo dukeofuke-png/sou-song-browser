@@ -131,18 +131,6 @@ function ArrangementLine({
 
   return (
     <div className="arrangement-line">
-      <div className="lyric-row-wrap" onScroll={syncFromLyric}>
-        <input
-          ref={lyricRef}
-          type="text"
-          className="lyric-input"
-          value={lyric}
-          onFocus={handleLyricFocus}
-          onBlur={handleLyricBlur}
-          onChange={(e) => onLyricChange(e.target.value)}
-          style={{ width: `${rowWidthCh}ch` }}
-        />
-      </div>
       <div className="chord-row-wrap" ref={chordRowRef} onScroll={syncFromChordRow}>
         {editingRow ? (
           <input
@@ -168,6 +156,17 @@ function ArrangementLine({
             ))}
           </div>
         )}
+      </div>
+      <div className="lyric-row-wrap" ref={lyricRef} onScroll={syncFromLyric}>
+        <input
+          type="text"
+          className="lyric-input"
+          value={lyric}
+          onFocus={handleLyricFocus}
+          onBlur={handleLyricBlur}
+          onChange={(e) => onLyricChange(e.target.value)}
+          style={{ width: `${rowWidthCh}ch` }}
+        />
       </div>
     </div>
   );
