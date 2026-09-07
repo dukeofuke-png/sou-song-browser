@@ -84,6 +84,27 @@
   background: #fef1ec;
 }
 
+.ab-existing-list {
+  max-width: 500px;
+  border: 1px solid #eee;
+  margin-bottom: 10px;
+}
+
+.ab-existing-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.ab-existing-item:hover {
+  background: #fef1ec;
+}
+
 .error-banner {
   background: #fdecea;
   color: #b71c1c;

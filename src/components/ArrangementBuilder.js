@@ -181,6 +181,20 @@ const ArrangementBuilder = () => {
   const [selectedSong, setSelectedSong] = useState(null);
   const [titleInput, setTitleInput] = useState('');
 
+  // Existing arrangements for the selected song (Screen 1 picker)
+  const [existingArrangements, setExistingArrangements] = useState(null); // null = not loaded yet
+  const [arrangementsLoading, setArrangementsLoading] = useState(false);
+  const [startingNew, setStartingNew] = useState(false);
+
+  // Identity of whatever Arrangement is currently loaded in the review screen —
+  // null id means this is a fresh/unsaved paste-import, not an existing row.
+  const [loadedArrangementId, setLoadedArrangementId] = useState(null);
+  const [loadedProvenance, setLoadedProvenance] = useState({
+    import_source_text: null,
+    import_source_type: null,
+    import_source_url: null,
+  });
+
   // Paste (Screen 1)
   const [rawText, setRawText] = useState('');
   const [parsing, setParsing] = useState(false);
@@ -227,10 +241,58 @@ const ArrangementBuilder = () => {
       .slice(0, 25);
   }, [allSongs, songQuery]);
 
-  const handleSelectSong = (song) => {
+  const handleSelectSong = async (song) => {
     setSelectedSong(song);
     setSongQuery('');
     if (!titleInput) setTitleInput(song.title || '');
+
+    setStartingNew(false);
+    setExistingArrangements(null);
+    setArrangementsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/arrangements?song_id=${encodeURIComponent(song.id)}`, {
+        credentials: 'include',
+      });
+      const data = res.ok ? await res.json() : [];
+      setExistingArrangements(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setExistingArrangements([]);
+    } finally {
+      setArrangementsLoading(false);
+    }
+  };
+
+  const handleChangeSong = () => {
+    setSelectedSong(null);
+    setExistingArrangements(null);
+    setStartingNew(false);
+  };
+
+  const handleLoadArrangement = async (id) => {
+    setParseError('');
+    try {
+      const res = await fetch(`${API_URL}/api/arrangements/${id}`, { credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) {
+        setParseError(data.error || 'Failed to load arrangement');
+        return;
+      }
+      setLoadedArrangementId(data.id);
+      setTitleInput(data.title || '');
+      setLoadedProvenance({
+        import_source_text: data.import_source_text,
+        import_source_type: data.import_source_type,
+        import_source_url: data.import_source_url,
+      });
+      setBodyJson(data.body_json);
+      setPendingKeys(new Set());
+      setAmbiguousKeys(new Set());
+      setSaveStatus('idle');
+      setSaveError('');
+      setScreen('review');
+    } catch (err) {
+      setParseError('Failed to connect to server');
+    }
   };
 
   const handleParse = async () => {
@@ -258,6 +320,12 @@ const ArrangementBuilder = () => {
       }
       setBodyJson(data.body_json);
       setOriginalRawText(rawText);
+      setLoadedArrangementId(null);
+      setLoadedProvenance({
+        import_source_text: rawText,
+        import_source_type: 'manual_paste',
+        import_source_url: null,
+      });
       setPendingKeys(new Set());
       setAmbiguousKeys(new Set());
       setSaveStatus('idle');
@@ -374,18 +442,26 @@ const ArrangementBuilder = () => {
   const handleSave = async () => {
     setSaveStatus('saving');
     setSaveError('');
-    try {
-      const res = await fetch(`${API_URL}/api/arrangements`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
+
+    const isUpdate = loadedArrangementId != null;
+    const url = isUpdate ? `${API_URL}/api/arrangements/${loadedArrangementId}` : `${API_URL}/api/arrangements`;
+    const method = isUpdate ? 'PUT' : 'POST';
+    const payload = isUpdate
+      ? { title: titleInput || null, body_json: bodyJson }
+      : {
           song_id: selectedSong.id,
           title: titleInput || null,
           body_json: bodyJson,
           import_source_text: originalRawText,
           import_source_type: 'manual_paste',
-        }),
+        };
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -393,7 +469,14 @@ const ArrangementBuilder = () => {
         setSaveError(data.error || 'Failed to save arrangement');
         return;
       }
+      if (isUpdate && data.id !== loadedArrangementId) {
+        // Sanity check per 5.5.8 step 4 — a PUT must not silently create a new row.
+        setSaveStatus('error');
+        setSaveError('Save returned a different arrangement id than expected.');
+        return;
+      }
       setBodyJson(data.body_json);
+      setLoadedArrangementId(data.id);
       setPendingKeys(new Set());
       setAmbiguousKeys(new Set());
       setSaveStatus('success');
@@ -407,6 +490,11 @@ const ArrangementBuilder = () => {
     setScreen('paste');
     setSelectedSong(null);
     setTitleInput('');
+    setExistingArrangements(null);
+    setArrangementsLoading(false);
+    setStartingNew(false);
+    setLoadedArrangementId(null);
+    setLoadedProvenance({ import_source_text: null, import_source_type: null, import_source_url: null });
     setRawText('');
     setParseError('');
     setOriginalRawText('');
@@ -436,7 +524,7 @@ const ArrangementBuilder = () => {
               <span>
                 {selectedSong.title} — {selectedSong.artist}
               </span>
-              <button className="btn-secondary" onClick={() => setSelectedSong(null)}>
+              <button className="btn-secondary" onClick={handleChangeSong}>
                 Change
               </button>
             </div>
@@ -464,38 +552,63 @@ const ArrangementBuilder = () => {
           )}
         </div>
 
-        <div className="ab-section">
-          <label className="ab-label" htmlFor="ab-title-input">
-            Arrangement title (optional)
-          </label>
-          <input
-            id="ab-title-input"
-            type="text"
-            className="ab-title-input"
-            value={titleInput}
-            onChange={(e) => setTitleInput(e.target.value)}
-          />
-        </div>
+        {selectedSong && arrangementsLoading && (
+          <div className="ab-section">Checking for existing arrangements…</div>
+        )}
 
-        <div className="ab-section">
-          <label className="ab-label" htmlFor="ab-paste-textarea">
-            Paste chord/lyric sheet
-          </label>
-          <textarea
-            id="ab-paste-textarea"
-            className="ab-paste-textarea"
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            rows={20}
-            spellCheck={false}
-          />
-        </div>
+        {selectedSong && !arrangementsLoading && existingArrangements && existingArrangements.length > 0 && !startingNew && (
+          <div className="ab-section">
+            <label className="ab-label">Existing arrangements for this song</label>
+            <div className="ab-existing-list">
+              {existingArrangements.map((a) => (
+                <button key={a.id} className="ab-existing-item" onClick={() => handleLoadArrangement(a.id)}>
+                  {a.title || '(untitled)'} — {a.status} — updated {a.updated_at}
+                </button>
+              ))}
+            </div>
+            <button className="btn-secondary" onClick={() => setStartingNew(true)}>
+              Start new Arrangement
+            </button>
+          </div>
+        )}
 
-        {parseError && <div className="error-banner">{parseError}</div>}
+        {(!selectedSong ||
+          (existingArrangements !== null && (existingArrangements.length === 0 || startingNew))) && (
+          <>
+            <div className="ab-section">
+              <label className="ab-label" htmlFor="ab-title-input">
+                Arrangement title (optional)
+              </label>
+              <input
+                id="ab-title-input"
+                type="text"
+                className="ab-title-input"
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+              />
+            </div>
 
-        <button className="btn-primary" onClick={handleParse} disabled={parsing}>
-          {parsing ? 'Parsing…' : 'Parse & Review'}
-        </button>
+            <div className="ab-section">
+              <label className="ab-label" htmlFor="ab-paste-textarea">
+                Paste chord/lyric sheet
+              </label>
+              <textarea
+                id="ab-paste-textarea"
+                className="ab-paste-textarea"
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                rows={20}
+                spellCheck={false}
+              />
+            </div>
+
+            {parseError && <div className="error-banner">{parseError}</div>}
+
+            <button className="btn-primary" onClick={handleParse} disabled={parsing}>
+              {parsing ? 'Parsing…' : 'Parse & Review'}
+            </button>
+          </>
+        )}
       </div>
     );
   }
