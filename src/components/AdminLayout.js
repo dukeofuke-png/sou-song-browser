@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiHome, FiSearch, FiMusic, FiSettings, FiLogOut, FiChevronDown, FiChevronRight, FiUpload, FiMessageSquare } from 'react-icons/fi';
+import { FiHome, FiSearch, FiMusic, FiSettings, FiLogOut, FiChevronDown, FiChevronRight, FiUpload, FiMessageSquare, FiEdit3 } from 'react-icons/fi';
 import './AdminLayout.css';
 
 /**
@@ -33,6 +33,11 @@ function AdminLayout({ children, activePage, onNavigate, onLogout }) {
       id: 'manage-sou', 
       icon: <FiMusic />, 
       label: 'Manage SOU Catalog' 
+    },
+    { 
+      id: 'arrangement-builder', 
+      icon: <FiEdit3 />, 
+      label: 'Arrangement Builder' 
     },
     { 
       id: 'settings', 

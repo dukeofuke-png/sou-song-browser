@@ -5,6 +5,7 @@ import BulkAddSongs from './BulkAddSongs';
 import ManageSOUDatabase from './ManageSOUDatabase';
 import SongEditor from './SongEditor';
 import ConversationWorkspace from './ConversationWorkspace';
+import ArrangementBuilder from './ArrangementBuilder';
 import { FiMusic, FiHome, FiFileText } from 'react-icons/fi';
 import './AdminDashboard.css';
 
@@ -183,6 +184,9 @@ const AdminDashboard = ({ onLogout }) => {
       
       case 'manage-sou':
         return <ManageSOUDatabase />;
+      
+      case 'arrangement-builder':
+        return <ArrangementBuilder />;
       
       case 'settings':
         return (
