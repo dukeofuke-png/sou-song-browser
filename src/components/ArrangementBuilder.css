@@ -29,6 +29,14 @@
   border-radius: 4px;
 }
 
+.ab-teaching-key-input {
+  width: 100%;
+  max-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
 .ab-paste-textarea {
   width: 100%;
   font-family: 'Courier New', Courier, monospace;
@@ -119,6 +127,18 @@
   padding: 10px 14px;
   border-radius: 4px;
   margin-bottom: 16px;
+}
+
+.warning-banner {
+  background: #fff4e0;
+  color: #8a5300;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.ab-publish-section {
+  margin-top: 16px;
 }
 
 .btn-primary {

@@ -180,6 +180,7 @@ const ArrangementBuilder = () => {
   const [songQuery, setSongQuery] = useState('');
   const [selectedSong, setSelectedSong] = useState(null);
   const [titleInput, setTitleInput] = useState('');
+  const [defaultTeachingKeyInput, setDefaultTeachingKeyInput] = useState('');
 
   // Existing arrangements for the selected song (Screen 1 picker)
   const [existingArrangements, setExistingArrangements] = useState(null); // null = not loaded yet
@@ -209,6 +210,11 @@ const ArrangementBuilder = () => {
   // Persist
   const [saveStatus, setSaveStatus] = useState('idle'); // idle | saving | success | error
   const [saveError, setSaveError] = useState('');
+
+  // Publish PDF (single action: publish -> generate-pdf, same click)
+  const [publishState, setPublishState] = useState('idle'); // idle | publishing | generating | success | partial | error
+  const [publishMessage, setPublishMessage] = useState('');
+  const [publishedPdfUrl, setPublishedPdfUrl] = useState(null);
 
   // Charwidth measured once for the whole review screen.
   const measureRef = useRef(null);
@@ -279,6 +285,7 @@ const ArrangementBuilder = () => {
       }
       setLoadedArrangementId(data.id);
       setTitleInput(data.title || '');
+      setDefaultTeachingKeyInput(data.default_teaching_key || '');
       setLoadedProvenance({
         import_source_text: data.import_source_text,
         import_source_type: data.import_source_type,
@@ -289,6 +296,9 @@ const ArrangementBuilder = () => {
       setAmbiguousKeys(new Set());
       setSaveStatus('idle');
       setSaveError('');
+      setPublishState('idle');
+      setPublishMessage('');
+      setPublishedPdfUrl(null);
       setScreen('review');
     } catch (err) {
       setParseError('Failed to connect to server');
@@ -446,14 +456,20 @@ const ArrangementBuilder = () => {
     const isUpdate = loadedArrangementId != null;
     const url = isUpdate ? `${API_URL}/api/arrangements/${loadedArrangementId}` : `${API_URL}/api/arrangements`;
     const method = isUpdate ? 'PUT' : 'POST';
+    // default_teaching_key is omitted (not sent as null/empty) when the input is
+    // empty, so a routine save never silently clears an existing key.
+    const defaultTeachingKeyField = defaultTeachingKeyInput
+      ? { default_teaching_key: defaultTeachingKeyInput }
+      : {};
     const payload = isUpdate
-      ? { title: titleInput || null, body_json: bodyJson }
+      ? { title: titleInput || null, body_json: bodyJson, ...defaultTeachingKeyField }
       : {
           song_id: selectedSong.id,
           title: titleInput || null,
           body_json: bodyJson,
           import_source_text: originalRawText,
           import_source_type: 'manual_paste',
+          ...defaultTeachingKeyField,
         };
 
     try {
@@ -490,6 +506,7 @@ const ArrangementBuilder = () => {
     setScreen('paste');
     setSelectedSong(null);
     setTitleInput('');
+    setDefaultTeachingKeyInput('');
     setExistingArrangements(null);
     setArrangementsLoading(false);
     setStartingNew(false);
@@ -503,6 +520,59 @@ const ArrangementBuilder = () => {
     setAmbiguousKeys(new Set());
     setSaveStatus('idle');
     setSaveError('');
+    setPublishState('idle');
+    setPublishMessage('');
+    setPublishedPdfUrl(null);
+  };
+
+  /**
+   * Single "Publish PDF" action: POST .../publish, then (if that succeeds)
+   * immediately POST .../resources/<id>/generate-pdf in the same click. No
+   * retry state of its own - clicking again just re-runs the full sequence,
+   * since both endpoints are already idempotent.
+   */
+  const handlePublishPdf = async () => {
+    setPublishState('publishing');
+    setPublishMessage('');
+    setPublishedPdfUrl(null);
+
+    let publishData;
+    try {
+      const res = await fetch(`${API_URL}/api/arrangements/${loadedArrangementId}/publish`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      publishData = await res.json();
+      if (!res.ok) {
+        setPublishState('error');
+        setPublishMessage(publishData.error || 'Failed to publish arrangement');
+        return;
+      }
+    } catch (err) {
+      setPublishState('error');
+      setPublishMessage('Failed to connect to server');
+      return;
+    }
+
+    setPublishState('generating');
+    try {
+      const res = await fetch(`${API_URL}/api/resources/${publishData.resource.id}/generate-pdf`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const genData = await res.json();
+      if (!res.ok) {
+        // Partial success: the Arrangement is validly published, just no PDF yet.
+        setPublishState('partial');
+        setPublishMessage(genData.error || 'Failed to generate PDF');
+        return;
+      }
+      setPublishState('success');
+      setPublishedPdfUrl(`https://pub-e43364bf5aa34598832e4b2e860e074d.r2.dev/${genData.r2_object_key}`);
+    } catch (err) {
+      setPublishState('partial');
+      setPublishMessage('Failed to connect to server');
+    }
   };
 
   // --- Render ---
@@ -585,6 +655,20 @@ const ArrangementBuilder = () => {
                 className="ab-title-input"
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
+              />
+            </div>
+
+            <div className="ab-section">
+              <label className="ab-label" htmlFor="ab-teaching-key-input">
+                Default teaching key (optional)
+              </label>
+              <input
+                id="ab-teaching-key-input"
+                type="text"
+                className="ab-teaching-key-input"
+                value={defaultTeachingKeyInput}
+                onChange={(e) => setDefaultTeachingKeyInput(e.target.value)}
+                placeholder="e.g., C, Am, F#"
               />
             </div>
 
@@ -675,6 +759,39 @@ const ArrangementBuilder = () => {
         <button className="btn-primary" onClick={handleSave} disabled={saveStatus === 'saving'}>
           {saveStatus === 'saving' ? 'Saving…' : 'Save Arrangement'}
         </button>
+      )}
+
+      {loadedArrangementId != null && (
+        <div className="ab-section ab-publish-section">
+          <button
+            className="btn-primary"
+            onClick={handlePublishPdf}
+            disabled={publishState === 'publishing' || publishState === 'generating'}
+          >
+            {publishState === 'publishing'
+              ? 'Publishing…'
+              : publishState === 'generating'
+              ? 'Generating PDF…'
+              : 'Publish PDF'}
+          </button>
+
+          {publishState === 'error' && <div className="error-banner">{publishMessage}</div>}
+
+          {publishState === 'partial' && (
+            <div className="warning-banner">
+              Arrangement published — PDF generation failed: {publishMessage}
+            </div>
+          )}
+
+          {publishState === 'success' && (
+            <div className="success-banner">
+              Published — PDF ready.{' '}
+              <a href={publishedPdfUrl} target="_blank" rel="noopener noreferrer">
+                Download PDF
+              </a>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
