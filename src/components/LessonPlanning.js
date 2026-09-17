@@ -71,12 +71,17 @@ function LessonPlanning() {
   const [planSaving, setPlanSaving] = useState(false);
   const [planSaveError, setPlanSaveError] = useState('');
 
-  // Song list for the Arrangement picker's first step (client-side substring filter).
+  // Song list for the Arrangement picker's first step (client-side substring filter,
+  // fetched once at mount — no per-search network request; only its loading/error
+  // state is asynchronous).
   const [allSongs, setAllSongs] = useState([]);
+  const [allSongsLoading, setAllSongsLoading] = useState(true);
+  const [allSongsError, setAllSongsError] = useState('');
 
   // Arrangement picker — one open at a time, keyed by chunk index.
   const [pickerOpenForIndex, setPickerOpenForIndex] = useState(null);
-  const [pickerSongQuery, setPickerSongQuery] = useState('');
+  const [pickerSongQuery, setPickerSongQuery] = useState(''); // raw input text
+  const [pickerSearchQuery, setPickerSearchQuery] = useState(''); // only updated on submit — drives the actual filter
   const [pickerSelectedSong, setPickerSelectedSong] = useState(null);
   const [pickerArrangements, setPickerArrangements] = useState([]);
   const [pickerArrangementsLoading, setPickerArrangementsLoading] = useState(false);
@@ -85,9 +90,14 @@ function LessonPlanning() {
   useEffect(() => {
     loadCourses();
     fetch(`${API_URL}/api/songs`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : []))
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || 'Failed to load songs');
+        return data;
+      })
       .then((data) => setAllSongs(Array.isArray(data) ? data : []))
-      .catch(() => setAllSongs([]));
+      .catch((err) => setAllSongsError(err.message || 'Failed to connect to server'))
+      .finally(() => setAllSongsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -330,6 +340,7 @@ function LessonPlanning() {
   const openPickerForChunk = (index) => {
     setPickerOpenForIndex(index);
     setPickerSongQuery('');
+    setPickerSearchQuery('');
     setPickerSelectedSong(null);
     setPickerArrangements([]);
     setPickerArrangementsError('');
@@ -338,18 +349,26 @@ function LessonPlanning() {
   const closePicker = () => {
     setPickerOpenForIndex(null);
     setPickerSongQuery('');
+    setPickerSearchQuery('');
     setPickerSelectedSong(null);
     setPickerArrangements([]);
     setPickerArrangementsError('');
   };
 
   const filteredPickerSongs = useMemo(() => {
-    if (!pickerSongQuery.trim()) return [];
-    const q = pickerSongQuery.toLowerCase();
+    if (!pickerSearchQuery.trim()) return [];
+    const q = pickerSearchQuery.toLowerCase();
     return allSongs
       .filter((s) => (s.title || '').toLowerCase().includes(q) || (s.artist || '').toLowerCase().includes(q))
       .slice(0, 25);
-  }, [allSongs, pickerSongQuery]);
+  }, [allSongs, pickerSearchQuery]);
+
+  const handlePickerSongSearchSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = pickerSongQuery.trim();
+    if (!trimmed || allSongsLoading) return; // reject empty/whitespace queries; nothing to search while the song list is still loading
+    setPickerSearchQuery(trimmed);
+  };
 
   const handlePickSong = async (song) => {
     setPickerSelectedSong(song);
@@ -466,13 +485,24 @@ function LessonPlanning() {
                     <div className="lp-arrangement-picker">
                       {!pickerSelectedSong ? (
                         <>
-                          <input
-                            type="text"
-                            className="lp-input"
-                            placeholder="Search songs by title or artist…"
-                            value={pickerSongQuery}
-                            onChange={(e) => setPickerSongQuery(e.target.value)}
-                          />
+                          <form className="lp-form-row" onSubmit={handlePickerSongSearchSubmit}>
+                            <input
+                              type="text"
+                              className="lp-input"
+                              placeholder="Search songs by title or artist…"
+                              value={pickerSongQuery}
+                              onChange={(e) => setPickerSongQuery(e.target.value)}
+                              disabled={allSongsLoading}
+                            />
+                            <button
+                              type="submit"
+                              className="btn-primary"
+                              disabled={allSongsLoading || !pickerSongQuery.trim()}
+                            >
+                              {allSongsLoading ? 'Loading songs…' : 'Search'}
+                            </button>
+                          </form>
+                          {allSongsError && <div className="error-banner">{allSongsError}</div>}
                           <div className="lp-picker-results">
                             {filteredPickerSongs.map((song) => (
                               <button key={song.id} type="button" className="lp-picker-result" onClick={() => handlePickSong(song)}>
