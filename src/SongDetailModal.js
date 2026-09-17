@@ -22,6 +22,10 @@ function SongDetailModal({ song, onClose }) {
     return abs.substring(idx + marker.length);
   };
 
+  // R2 direct links, checked independently — a song can have a sheet, a TAB, both, or neither.
+  const hasR2SongSheet = Boolean(song.songSheetPath && song.songSheetPath.startsWith('https://'));
+  const hasR2Tab = Boolean(song.melodyTabPath && song.melodyTabPath.startsWith('https://'));
+
   // Extract clean display name from file path
   const getDisplayName = (filePath) => {
     if (!filePath) return null;
@@ -427,17 +431,29 @@ function SongDetailModal({ song, onClose }) {
           {/* 4. AVAILABLE MATERIALS */}
           <section className="detail-section">
             <h4>Available Materials</h4>
-            {song.songSheetPath && song.songSheetPath.startsWith('https://') ? (
-              // R2 direct link — song sheet uploaded to Cloudflare R2
+            {hasR2SongSheet || hasR2Tab ? (
+              // R2 direct links — song sheet and/or TAB uploaded to Cloudflare R2, rendered independently
               <div className="external-links" style={{ marginTop: 0 }}>
-                <a
-                  href={song.songSheetPath}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="external-link"
-                >
-                  📄 Song Sheet
-                </a>
+                {hasR2SongSheet && (
+                  <a
+                    href={song.songSheetPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="external-link"
+                  >
+                    📄 Song Sheet
+                  </a>
+                )}
+                {hasR2Tab && (
+                  <a
+                    href={song.melodyTabPath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="external-link"
+                  >
+                    🎵 Melody TAB
+                  </a>
+                )}
               </div>
             ) : song.materials && song.materials.length > 0 ? (
               <div className="external-links" style={{ marginTop: 0 }}>
