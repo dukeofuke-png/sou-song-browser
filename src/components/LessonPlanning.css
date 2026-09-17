@@ -198,6 +198,24 @@
   background: #fafafa;
 }
 
+/* Song-search step of the picker: input grows, Search button stays content-sized and inline beside it. */
+.lp-picker-search-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.lp-picker-search-form .lp-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.lp-picker-search-form button[type="submit"] {
+  flex-shrink: 0;
+  width: auto;
+}
+
 .lp-picker-results {
   max-width: 500px;
   border: 1px solid #eee;

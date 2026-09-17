@@ -485,7 +485,7 @@ function LessonPlanning() {
                     <div className="lp-arrangement-picker">
                       {!pickerSelectedSong ? (
                         <>
-                          <form className="lp-form-row" onSubmit={handlePickerSongSearchSubmit}>
+                          <form className="lp-picker-search-form" onSubmit={handlePickerSongSearchSubmit}>
                             <input
                               type="text"
                               className="lp-input"
