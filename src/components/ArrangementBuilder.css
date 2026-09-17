@@ -37,6 +37,22 @@
   border-radius: 4px;
 }
 
+.ab-source-key-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ab-source-key-section .ab-label {
+  margin-bottom: 0;
+}
+
+.ab-hint {
+  color: #6c757d;
+  font-size: 13px;
+}
+
 .ab-paste-textarea {
   width: 100%;
   font-family: 'Courier New', Courier, monospace;

@@ -182,6 +182,20 @@ const ArrangementBuilder = () => {
   const [titleInput, setTitleInput] = useState('');
   const [defaultTeachingKeyInput, setDefaultTeachingKeyInput] = useState('');
 
+  // Source Key (Key Model Phase 1) — suggest-then-confirm, alongside the
+  // existing (unchanged) default_teaching_key field. sourceKeySuggestion is
+  // whatever GET /api/arrangements/song-key-suggestion returned for the
+  // selected song; sourceKeyWasSuggested tracks whether the current input
+  // still matches that suggestion verbatim (accepted as-is) or has been
+  // edited (tutor override) — this decides source: 'song_data' vs
+  // 'tutor_entered' on confirm.
+  const [sourceKeySuggestion, setSourceKeySuggestion] = useState(null); // { tonic_spelling, tonic_pc, mode } | null
+  const [sourceKeyInput, setSourceKeyInput] = useState('');
+  const [sourceKeyWasSuggested, setSourceKeyWasSuggested] = useState(false);
+  const [transpositionOrigin, setTranspositionOrigin] = useState(null); // last known persisted value, for display
+  const [confirmKeyStatus, setConfirmKeyStatus] = useState('idle'); // idle | confirming | success | error
+  const [confirmKeyError, setConfirmKeyError] = useState('');
+
   // Existing arrangements for the selected song (Screen 1 picker)
   const [existingArrangements, setExistingArrangements] = useState(null); // null = not loaded yet
   const [arrangementsLoading, setArrangementsLoading] = useState(false);
@@ -255,6 +269,30 @@ const ArrangementBuilder = () => {
     setStartingNew(false);
     setExistingArrangements(null);
     setArrangementsLoading(true);
+
+    // Source Key suggestion — honest empty state if none usable, no fabricated default.
+    setSourceKeySuggestion(null);
+    setSourceKeyInput('');
+    setSourceKeyWasSuggested(false);
+    setTranspositionOrigin(null);
+    setConfirmKeyStatus('idle');
+    setConfirmKeyError('');
+    try {
+      const keyRes = await fetch(`${API_URL}/api/arrangements/song-key-suggestion?song_id=${encodeURIComponent(song.id)}`, {
+        credentials: 'include',
+      });
+      if (keyRes.ok) {
+        const keyData = await keyRes.json();
+        setSourceKeySuggestion(keyData);
+        if (keyData.tonic_spelling) {
+          setSourceKeyInput(keyData.tonic_spelling);
+          setSourceKeyWasSuggested(true);
+        }
+      }
+    } catch (err) {
+      // No usable suggestion — leave the input empty, not an error banner.
+    }
+
     try {
       const res = await fetch(`${API_URL}/api/arrangements?song_id=${encodeURIComponent(song.id)}`, {
         credentials: 'include',
@@ -272,6 +310,12 @@ const ArrangementBuilder = () => {
     setSelectedSong(null);
     setExistingArrangements(null);
     setStartingNew(false);
+    setSourceKeySuggestion(null);
+    setSourceKeyInput('');
+    setSourceKeyWasSuggested(false);
+    setTranspositionOrigin(null);
+    setConfirmKeyStatus('idle');
+    setConfirmKeyError('');
   };
 
   const handleLoadArrangement = async (id) => {
@@ -286,6 +330,38 @@ const ArrangementBuilder = () => {
       setLoadedArrangementId(data.id);
       setTitleInput(data.title || '');
       setDefaultTeachingKeyInput(data.default_teaching_key || '');
+
+      // Source Key: an already-confirmed/recorded transposition_origin takes
+      // priority over fetching a fresh suggestion.
+      const existingOrigin = data.body_json && data.body_json.transposition_origin;
+      setTranspositionOrigin(existingOrigin || null);
+      setConfirmKeyStatus('idle');
+      setConfirmKeyError('');
+      if (existingOrigin && existingOrigin.tonic_spelling) {
+        setSourceKeyInput(existingOrigin.tonic_spelling);
+        setSourceKeySuggestion(null);
+        setSourceKeyWasSuggested(false);
+      } else {
+        setSourceKeyInput('');
+        setSourceKeySuggestion(null);
+        setSourceKeyWasSuggested(false);
+        try {
+          const keyRes = await fetch(`${API_URL}/api/arrangements/song-key-suggestion?song_id=${encodeURIComponent(data.song_id)}`, {
+            credentials: 'include',
+          });
+          if (keyRes.ok) {
+            const keyData = await keyRes.json();
+            setSourceKeySuggestion(keyData);
+            if (keyData.tonic_spelling) {
+              setSourceKeyInput(keyData.tonic_spelling);
+              setSourceKeyWasSuggested(true);
+            }
+          }
+        } catch (err) {
+          // No usable suggestion — leave the input empty, not an error banner.
+        }
+      }
+
       setLoadedProvenance({
         import_source_text: data.import_source_text,
         import_source_type: data.import_source_type,
@@ -502,11 +578,49 @@ const ArrangementBuilder = () => {
     }
   };
 
+  const handleConfirmSourceKey = async () => {
+    if (!loadedArrangementId) return; // button disabled until the Arrangement has been saved at least once
+    setConfirmKeyStatus('confirming');
+    setConfirmKeyError('');
+
+    // Accepted the suggestion as-is -> 'song_data'; typed/edited it -> 'tutor_entered'.
+    const source =
+      sourceKeyWasSuggested && sourceKeySuggestion && sourceKeyInput === sourceKeySuggestion.tonic_spelling
+        ? 'song_data'
+        : 'tutor_entered';
+
+    try {
+      const res = await fetch(`${API_URL}/api/arrangements/${loadedArrangementId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ source_key_text: sourceKeyInput, source, confirmed: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setConfirmKeyStatus('error');
+        setConfirmKeyError(data.error || 'Failed to confirm Source Key');
+        return; // sourceKeyInput is left exactly as the tutor typed it — never cleared
+      }
+      setTranspositionOrigin(data.body_json.transposition_origin);
+      setConfirmKeyStatus('success');
+    } catch (err) {
+      setConfirmKeyStatus('error');
+      setConfirmKeyError('Failed to connect to server');
+    }
+  };
+
   const handleStartOver = () => {
     setScreen('paste');
     setSelectedSong(null);
     setTitleInput('');
     setDefaultTeachingKeyInput('');
+    setSourceKeySuggestion(null);
+    setSourceKeyInput('');
+    setSourceKeyWasSuggested(false);
+    setTranspositionOrigin(null);
+    setConfirmKeyStatus('idle');
+    setConfirmKeyError('');
     setExistingArrangements(null);
     setArrangementsLoading(false);
     setStartingNew(false);
@@ -744,6 +858,38 @@ const ArrangementBuilder = () => {
           )}
         </div>
       ))}
+
+      <div className="ab-section ab-source-key-section">
+        <label className="ab-label" htmlFor="ab-source-key-input">
+          Source Key
+        </label>
+        <input
+          id="ab-source-key-input"
+          type="text"
+          className="ab-teaching-key-input"
+          value={sourceKeyInput}
+          onChange={(e) => {
+            setSourceKeyInput(e.target.value);
+            setSourceKeyWasSuggested(false);
+          }}
+          placeholder="e.g., Bb, F# minor"
+        />
+        <button
+          className="btn-secondary"
+          onClick={handleConfirmSourceKey}
+          disabled={!loadedArrangementId || confirmKeyStatus === 'confirming' || !sourceKeyInput.trim()}
+          title={!loadedArrangementId ? 'Save the Arrangement first, then confirm its Source Key' : undefined}
+        >
+          {confirmKeyStatus === 'confirming' ? 'Confirming…' : 'Confirm Source Key'}
+        </button>
+        {transpositionOrigin && transpositionOrigin.confirmed && (
+          <span className="ab-hint">
+            {' '}Confirmed: {transpositionOrigin.tonic_spelling}
+            {transpositionOrigin.mode ? ` ${transpositionOrigin.mode}` : ''} ({transpositionOrigin.source})
+          </span>
+        )}
+        {confirmKeyStatus === 'error' && <div className="error-banner">{confirmKeyError}</div>}
+      </div>
 
       {saveStatus === 'error' && <div className="error-banner">{saveError}</div>}
       {saveStatus === 'success' && (
