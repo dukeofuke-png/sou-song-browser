@@ -1,0 +1,152 @@
+.lesson-planning-page {
+  padding: 24px;
+  max-width: 800px;
+}
+
+.lesson-planning-page .page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #FF6B35;
+}
+
+.lp-section {
+  margin-bottom: 20px;
+}
+
+.lp-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.lp-list {
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.lp-course-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.lp-course-item:last-child {
+  border-bottom: none;
+}
+
+.lp-course-item:hover {
+  background: #fef1ec;
+}
+
+.lp-course-title {
+  font-weight: 600;
+  color: #333;
+}
+
+.lp-course-dates {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.lp-lesson-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  /* Display-only — no cursor/hover affordance, this row isn't clickable. */
+}
+
+.lp-lesson-row:last-child {
+  border-bottom: none;
+}
+
+.lp-lesson-datetime {
+  color: #333;
+}
+
+.lp-lesson-status {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.lp-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.lp-new-form {
+  padding: 16px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.lp-form-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.lp-input {
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.lp-inline-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #333;
+}
+
+.lp-hint {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.error-banner {
+  background: #fdecea;
+  color: #b71c1c;
+  padding: 10px 14px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.btn-primary {
+  background: #FF6B35;
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-secondary {
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 8px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
