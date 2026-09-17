@@ -63,13 +63,21 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  text-align: left;
   padding: 10px 14px;
+  background: #fff;
+  border: none;
   border-bottom: 1px solid #f0f0f0;
-  /* Display-only — no cursor/hover affordance, this row isn't clickable. */
+  cursor: pointer;
 }
 
 .lp-lesson-row:last-child {
   border-bottom: none;
+}
+
+.lp-lesson-row:hover {
+  background: #fef1ec;
 }
 
 .lp-lesson-datetime {
@@ -149,4 +157,73 @@
   padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.lp-chunk-row {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.lp-chunk-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.lp-chunk-field {
+  margin-bottom: 12px;
+}
+
+.lp-chunk-notes {
+  width: 100%;
+  min-height: 50px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.lp-chunk-arrangement-picked {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lp-arrangement-picker {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background: #fafafa;
+}
+
+.lp-picker-results {
+  max-width: 500px;
+  border: 1px solid #eee;
+  margin: 8px 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.lp-picker-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.lp-picker-result:hover {
+  background: #fef1ec;
+}
+
+.lp-picker-selected-song {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
