@@ -38,6 +38,23 @@ function buildArrangementDisplay(song, arrangement) {
   return `${songLabel} \u2014 ${arrangement.title || '(untitled)'} \u2014 ${arrangement.status}`;
 }
 
+/**
+ * Translate the one recognized backend validation error (a specific Lesson
+ * Activity's timing_minutes) into Activity-relative copy. Any other shape
+ * (arrangement-reference failure, malformed structure, network/500 errors) is
+ * shown honestly with the real backend message intact, not swallowed or
+ * replaced with an invented generic message.
+ */
+function translateSaveError(rawError) {
+  const message = rawError || 'Failed to save lesson plan';
+  const timingMatch = /^chunks\[(\d+)\]: timing_minutes must be a non-negative number$/.exec(message);
+  if (timingMatch) {
+    const activityNumber = Number(timingMatch[1]) + 1;
+    return `Lesson Activity ${activityNumber}: Timing must be zero or more.`;
+  }
+  return `Could not save the plan: ${message}`;
+}
+
 function LessonPlanning() {
   const [view, setView] = useState('courses'); // 'courses' | 'lessons' | 'plan'
 
@@ -420,10 +437,10 @@ function LessonPlanning() {
         setPlanContentUpdatedAt(data.plan_content_updated_at);
       } else {
         // Leave all entered chunk content exactly as the tutor left it.
-        setPlanSaveError(data.error || 'Failed to save lesson plan');
+        setPlanSaveError(translateSaveError(data.error));
       }
     } catch (err) {
-      setPlanSaveError('Failed to connect to server');
+      setPlanSaveError(translateSaveError('Failed to connect to server'));
     } finally {
       setPlanSaving(false);
     }
@@ -453,6 +470,7 @@ function LessonPlanning() {
 
             {planChunks.map((chunk, index) => (
               <div key={index} className="lp-chunk-row">
+                <h4 className="lp-chunk-heading">Lesson Activity {index + 1}</h4>
                 <div className="lp-chunk-controls">
                   <button type="button" className="btn-secondary" disabled={index === 0} onClick={() => handleMoveChunk(index, -1)}>
                     ↑
@@ -466,7 +484,7 @@ function LessonPlanning() {
                 </div>
 
                 <div className="lp-chunk-field">
-                  <label className="lp-label">Arrangement</label>
+                  <label className="lp-label">Song Arrangement (optional)</label>
                   {chunk._display ? (
                     <div className="lp-chunk-arrangement-picked">
                       <span>{chunk._display}</span>
@@ -478,7 +496,7 @@ function LessonPlanning() {
                     <span className="lp-hint">(none selected)</span>
                   )}
                   <button type="button" className="btn-secondary" onClick={() => openPickerForChunk(index)}>
-                    {chunk._display ? 'Change Arrangement' : 'Choose Arrangement'}
+                    {chunk._display ? 'Change Song Arrangement' : 'Choose Song Arrangement'}
                   </button>
 
                   {pickerOpenForIndex === index && (
@@ -503,13 +521,17 @@ function LessonPlanning() {
                             </button>
                           </form>
                           {allSongsError && <div className="error-banner">{allSongsError}</div>}
-                          <div className="lp-picker-results">
-                            {filteredPickerSongs.map((song) => (
-                              <button key={song.id} type="button" className="lp-picker-result" onClick={() => handlePickSong(song)}>
-                                {song.title} — {song.artist}
-                              </button>
-                            ))}
-                          </div>
+                          {pickerSearchQuery.trim() && !allSongsLoading && filteredPickerSongs.length === 0 ? (
+                            <div className="lp-hint">No Songs found</div>
+                          ) : (
+                            <div className="lp-picker-results">
+                              {filteredPickerSongs.map((song) => (
+                                <button key={song.id} type="button" className="lp-picker-result" onClick={() => handlePickSong(song)}>
+                                  {song.title} — {song.artist}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
@@ -544,7 +566,7 @@ function LessonPlanning() {
                 </div>
 
                 <div className="lp-chunk-field">
-                  <label className="lp-label">Notes</label>
+                  <label className="lp-label">Lesson Notes</label>
                   <textarea
                     className="lp-input lp-chunk-notes"
                     value={chunk.notes}

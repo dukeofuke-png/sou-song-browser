@@ -166,6 +166,13 @@
   margin-bottom: 14px;
 }
 
+.lp-chunk-heading {
+  margin: 0 0 10px;
+  font-weight: 600;
+  color: #333;
+  font-size: 15px;
+}
+
 .lp-chunk-controls {
   display: flex;
   gap: 8px;
