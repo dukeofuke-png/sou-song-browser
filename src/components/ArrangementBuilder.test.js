@@ -157,3 +157,172 @@ test('the Confirm Source Key button is disabled before the Arrangement has ever 
   await waitFor(() => expect(screen.getByDisplayValue('Bb')).toBeInTheDocument());
   expect(screen.getByText('Confirm Source Key')).toBeDisabled(); // no loadedArrangementId yet — not saved
 });
+
+/**
+ * Coverage for the follow-up fix: reopening an existing Arrangement whose
+ * stored transposition_origin is unconfirmed must always fetch a fresh
+ * song-data suggestion and compare it (by tonic_pc + mode, not spelling)
+ * against the stored value — showing both candidates when they genuinely
+ * disagree, collapsing to one when they don't, and never fetching at all
+ * once a value is actually confirmed.
+ */
+
+function installReopenFetchMock({ existingOrigin, suggestion, suggestionOk = true }) {
+  const arrangementRow = {
+    id: 100,
+    song_id: 'song_a',
+    title: 'Existing Arr',
+    status: 'draft',
+    default_teaching_key: 'D',
+    body_json: {
+      schema_version: 2,
+      sections: [{ id: 'sec_1', type: 'lyrics_chords', content: { lines: [{ lyric: 'la la la', chords: [{ position: 0, chord: { symbol: 'D', root: 'D', quality: 'major', bass: null, root_pc: 2, bass_pc: null } }] }] } }],
+      ...(existingOrigin ? { transposition_origin: existingOrigin } : {}),
+    },
+    import_source_text: null,
+    import_source_type: 'manual_paste',
+    import_source_url: null,
+  };
+
+  global.fetch = jest.fn((url, options = {}) => {
+    const u = String(url);
+    const method = (options.method || 'GET').toUpperCase();
+
+    if (u.endsWith('/api/songs')) return jsonResponse(200, [MOCK_SONG]);
+    if (u.includes('/api/arrangements?song_id=song_a')) {
+      return jsonResponse(200, [{ id: 100, title: 'Existing Arr', status: 'draft', updated_at: '2026-09-15' }]);
+    }
+    if (u.includes('/api/arrangements/song-key-suggestion?song_id=song_a')) {
+      if (!suggestionOk) return jsonResponse(404, { error: 'no suggestion' });
+      return jsonResponse(200, suggestion);
+    }
+    if (u.endsWith('/api/arrangements/100') && method === 'GET') {
+      return jsonResponse(200, arrangementRow);
+    }
+    if (u.endsWith('/api/arrangements/100') && method === 'PUT') {
+      const sent = JSON.parse(options.body);
+      const mode = sent.source_key_text === 'C♯' ? 'minor' : null; // mirrors what the real backend's parseKeyString would derive
+      return jsonResponse(200, {
+        ...arrangementRow,
+        body_json: {
+          ...arrangementRow.body_json,
+          transposition_origin: { tonic_pc: null, tonic_spelling: sent.source_key_text, mode, source: sent.source, confirmed: true },
+        },
+      });
+    }
+    return jsonResponse(404, { error: `Unhandled mock URL: ${u}` });
+  });
+}
+
+/** Select the song, open the existing Arrangement, wait for the review screen's Source Key section to render. */
+async function openExistingArrangement() {
+  render(<ArrangementBuilder />);
+  const searchInput = await screen.findByPlaceholderText('Search songs by title, artist, or ID...');
+  userEvent.type(searchInput, 'Test Song');
+  fireEvent.click(await screen.findByText('Test Song — Test Artist'));
+  const openButton = await screen.findByText(/Existing Arr — draft — updated/);
+  const suggestionCallsBeforeLoad = global.fetch.mock.calls.filter(([url]) => String(url).includes('/song-key-suggestion')).length;
+  fireEvent.click(openButton);
+  await waitFor(() => expect(screen.getByLabelText('Source Key')).toBeInTheDocument());
+  return suggestionCallsBeforeLoad;
+}
+
+test('unconfirmed stored value + disagreeing fresh suggestion: both candidates shown, song-data suggestion is the active default', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'C♯', tonic_pc: 1, mode: 'minor' },
+  });
+
+  await openExistingArrangement();
+
+  expect(screen.getByDisplayValue('C♯')).toBeInTheDocument();
+  expect(screen.getByText(/Song Data suggestion: C♯ minor \(from song data\)/)).toBeInTheDocument();
+  expect(screen.getByText(/Previously saved value \(unconfirmed\): D/)).toBeInTheDocument();
+});
+
+test('unconfirmed stored value + fresh suggestion normalize to the same key (tonic_pc + mode): collapses to a single candidate', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: null },
+  });
+
+  await openExistingArrangement();
+
+  expect(screen.getByDisplayValue('D')).toBeInTheDocument();
+  expect(screen.queryByText(/Song Data suggestion/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Previously saved value/)).not.toBeInTheDocument();
+});
+
+test('no stored transposition_origin at all: unchanged single fresh-suggestion behaviour', async () => {
+  installReopenFetchMock({
+    existingOrigin: undefined,
+    suggestion: { tonic_spelling: 'Bb', tonic_pc: 10, mode: null },
+  });
+
+  await openExistingArrangement();
+
+  expect(screen.getByDisplayValue('Bb')).toBeInTheDocument();
+  expect(screen.queryByText(/Song Data suggestion/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Previously saved value/)).not.toBeInTheDocument();
+});
+
+test('already-confirmed transposition_origin: no fresh fetch on load, confirmed value shown as before', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 1, tonic_spelling: 'C♯', mode: 'minor', source: 'tutor_entered', confirmed: true },
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: null }, // would disagree, but must never be fetched
+  });
+
+  const suggestionCallsBeforeLoad = await openExistingArrangement();
+  const suggestionCallsAfterLoad = global.fetch.mock.calls.filter(([url]) => String(url).includes('/song-key-suggestion')).length;
+
+  expect(suggestionCallsAfterLoad).toBe(suggestionCallsBeforeLoad); // no additional fetch triggered by loading a confirmed value
+  expect(screen.getByDisplayValue('C♯')).toBeInTheDocument();
+  expect(screen.getByText(/Confirmed: C♯ minor \(tutor_entered\)/)).toBeInTheDocument();
+  expect(screen.queryByText(/Song Data suggestion/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Previously saved value/)).not.toBeInTheDocument();
+});
+
+test('two-candidate scenario: accepting the default (song-data) suggestion still persists source: "song_data"', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'C♯', tonic_pc: 1, mode: 'minor' },
+  });
+  await openExistingArrangement();
+
+  fireEvent.click(screen.getByText('Confirm Source Key'));
+  await waitFor(() => expect(screen.getByText(/Confirmed: C♯ minor \(song_data\)/)).toBeInTheDocument());
+
+  const putCall = global.fetch.mock.calls.find(([url, opts]) => String(url).endsWith('/api/arrangements/100') && opts.method === 'PUT');
+  expect(JSON.parse(putCall[1].body)).toEqual({ source_key_text: 'C♯', source: 'song_data', confirmed: true });
+});
+
+test('two-candidate scenario: explicitly picking the previously-saved value persists source: "tutor_entered"', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'C♯', tonic_pc: 1, mode: 'minor' },
+  });
+  await openExistingArrangement();
+
+  fireEvent.click(screen.getByText(/Previously saved value \(unconfirmed\): D/));
+  expect(screen.getByDisplayValue('D')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Confirm Source Key'));
+
+  await waitFor(() => {
+    const putCall = global.fetch.mock.calls.find(([url, opts]) => String(url).endsWith('/api/arrangements/100') && opts.method === 'PUT');
+    expect(putCall).toBeDefined();
+  });
+  const putCall = global.fetch.mock.calls.find(([url, opts]) => String(url).endsWith('/api/arrangements/100') && opts.method === 'PUT');
+  expect(JSON.parse(putCall[1].body)).toEqual({ source_key_text: 'D', source: 'tutor_entered', confirmed: true });
+});
+
+test('loading a two-candidate screen and not confirming makes no PUT request at all', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'C♯', tonic_pc: 1, mode: 'minor' },
+  });
+
+  await openExistingArrangement();
+
+  const putCalls = global.fetch.mock.calls.filter(([url, opts]) => String(url).endsWith('/api/arrangements/100') && (opts.method || 'GET').toUpperCase() === 'PUT');
+  expect(putCalls).toHaveLength(0); // viewing alone writes nothing
+});

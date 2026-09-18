@@ -193,6 +193,12 @@ const ArrangementBuilder = () => {
   const [sourceKeyInput, setSourceKeyInput] = useState('');
   const [sourceKeyWasSuggested, setSourceKeyWasSuggested] = useState(false);
   const [transpositionOrigin, setTranspositionOrigin] = useState(null); // last known persisted value, for display
+  // A stored-but-unconfirmed transposition_origin (e.g. carried forward from
+  // default_teaching_key by the Key Model Phase 1 migration), kept separate
+  // from sourceKeySuggestion so both can be shown when they disagree. Null
+  // whenever there's nothing to compare against, or once compared and found
+  // to be the same key as the fresh suggestion (no false choice presented).
+  const [savedUnconfirmedOrigin, setSavedUnconfirmedOrigin] = useState(null);
   const [confirmKeyStatus, setConfirmKeyStatus] = useState('idle'); // idle | confirming | success | error
   const [confirmKeyError, setConfirmKeyError] = useState('');
 
@@ -314,6 +320,7 @@ const ArrangementBuilder = () => {
     setSourceKeyInput('');
     setSourceKeyWasSuggested(false);
     setTranspositionOrigin(null);
+    setSavedUnconfirmedOrigin(null);
     setConfirmKeyStatus('idle');
     setConfirmKeyError('');
   };
@@ -331,34 +338,50 @@ const ArrangementBuilder = () => {
       setTitleInput(data.title || '');
       setDefaultTeachingKeyInput(data.default_teaching_key || '');
 
-      // Source Key: an already-confirmed/recorded transposition_origin takes
-      // priority over fetching a fresh suggestion.
+      // Source Key: only a genuinely CONFIRMED transposition_origin skips the
+      // fresh-suggestion fetch. An absent or unconfirmed one (including a
+      // legacy value the migration carried forward from default_teaching_key)
+      // always triggers a fresh fetch, so it can be compared against — not
+      // just displayed as if it were the suggestion.
       const existingOrigin = data.body_json && data.body_json.transposition_origin;
       setTranspositionOrigin(existingOrigin || null);
       setConfirmKeyStatus('idle');
       setConfirmKeyError('');
-      if (existingOrigin && existingOrigin.tonic_spelling) {
-        setSourceKeyInput(existingOrigin.tonic_spelling);
+
+      if (existingOrigin && existingOrigin.confirmed === true) {
+        setSourceKeyInput(existingOrigin.tonic_spelling || '');
         setSourceKeySuggestion(null);
         setSourceKeyWasSuggested(false);
+        setSavedUnconfirmedOrigin(null);
       } else {
-        setSourceKeyInput('');
+        const savedCandidate = existingOrigin && existingOrigin.tonic_spelling ? existingOrigin : null;
         setSourceKeySuggestion(null);
         setSourceKeyWasSuggested(false);
+        setSourceKeyInput(savedCandidate ? savedCandidate.tonic_spelling : '');
+        setSavedUnconfirmedOrigin(savedCandidate);
         try {
           const keyRes = await fetch(`${API_URL}/api/arrangements/song-key-suggestion?song_id=${encodeURIComponent(data.song_id)}`, {
             credentials: 'include',
           });
           if (keyRes.ok) {
             const keyData = await keyRes.json();
-            setSourceKeySuggestion(keyData);
             if (keyData.tonic_spelling) {
+              // Compare by normalized value (tonic_pc + mode), never by spelling —
+              // e.g. C♯ minor and D♭ minor are the same candidate.
+              const sameKey =
+                savedCandidate && savedCandidate.tonic_pc === keyData.tonic_pc && savedCandidate.mode === keyData.mode;
+              setSourceKeySuggestion(keyData);
+              if (sameKey) {
+                setSavedUnconfirmedOrigin(null); // don't present a false choice between identical keys
+              }
               setSourceKeyInput(keyData.tonic_spelling);
               setSourceKeyWasSuggested(true);
             }
+            // else: no usable fresh suggestion — the savedCandidate default set above stands.
           }
+          // non-ok response: the savedCandidate default set above stands, no error banner.
         } catch (err) {
-          // No usable suggestion — leave the input empty, not an error banner.
+          // No usable suggestion — the savedCandidate default set above stands (or stays empty).
         }
       }
 
@@ -619,6 +642,7 @@ const ArrangementBuilder = () => {
     setSourceKeyInput('');
     setSourceKeyWasSuggested(false);
     setTranspositionOrigin(null);
+    setSavedUnconfirmedOrigin(null);
     setConfirmKeyStatus('idle');
     setConfirmKeyError('');
     setExistingArrangements(null);
@@ -886,6 +910,38 @@ const ArrangementBuilder = () => {
           <span className="ab-hint">
             {' '}Confirmed: {transpositionOrigin.tonic_spelling}
             {transpositionOrigin.mode ? ` ${transpositionOrigin.mode}` : ''} ({transpositionOrigin.source})
+          </span>
+        )}
+        {sourceKeySuggestion && savedUnconfirmedOrigin && (
+          <div className="ab-key-candidates">
+            <button
+              type="button"
+              className="ab-key-candidate-btn"
+              onClick={() => {
+                setSourceKeyInput(sourceKeySuggestion.tonic_spelling);
+                setSourceKeyWasSuggested(true);
+              }}
+            >
+              Song Data suggestion: {sourceKeySuggestion.tonic_spelling}
+              {sourceKeySuggestion.mode ? ` ${sourceKeySuggestion.mode}` : ''} (from song data)
+            </button>
+            <button
+              type="button"
+              className="ab-key-candidate-btn"
+              onClick={() => {
+                setSourceKeyInput(savedUnconfirmedOrigin.tonic_spelling);
+                setSourceKeyWasSuggested(false);
+              }}
+            >
+              Previously saved value (unconfirmed): {savedUnconfirmedOrigin.tonic_spelling}
+              {savedUnconfirmedOrigin.mode ? ` ${savedUnconfirmedOrigin.mode}` : ''}
+            </button>
+          </div>
+        )}
+        {!sourceKeySuggestion && savedUnconfirmedOrigin && (
+          <span className="ab-hint">
+            {' '}Previously saved value (unconfirmed): {savedUnconfirmedOrigin.tonic_spelling}
+            {savedUnconfirmedOrigin.mode ? ` ${savedUnconfirmedOrigin.mode}` : ''}
           </span>
         )}
         {confirmKeyStatus === 'error' && <div className="error-banner">{confirmKeyError}</div>}

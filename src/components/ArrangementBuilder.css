@@ -53,6 +53,28 @@
   font-size: 13px;
 }
 
+.ab-key-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.ab-key-candidate-btn {
+  text-align: left;
+  background: #f4f6f8;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+}
+
+.ab-key-candidate-btn:hover {
+  background: #e9ecef;
+}
+
 .ab-paste-textarea {
   width: 100%;
   font-family: 'Courier New', Courier, monospace;
