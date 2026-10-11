@@ -179,6 +179,16 @@
   margin-top: 16px;
 }
 
+.ab-resources-list {
+  margin: 10px 0;
+}
+
+.ab-resource-item {
+  font-size: 13px;
+  color: #444;
+  padding: 4px 0;
+}
+
 .btn-primary {
   background: #FF6B35;
   color: #fff;

@@ -167,7 +167,7 @@ test('the Confirm Source Key button is disabled before the Arrangement has ever 
  * once a value is actually confirmed.
  */
 
-function installReopenFetchMock({ existingOrigin, suggestion, suggestionOk = true }) {
+function installReopenFetchMock({ existingOrigin, suggestion, suggestionOk = true, printKeyPreviewResponse, resourcesListResponse, publishResponse, generatePdfResponse }) {
   const arrangementRow = {
     id: 100,
     song_id: 'song_a',
@@ -210,9 +210,25 @@ function installReopenFetchMock({ existingOrigin, suggestion, suggestionOk = tru
         },
       });
     }
+    if (u.endsWith('/api/arrangements/100/print-key-preview') && method === 'POST') {
+      return jsonResponse(
+        200,
+        printKeyPreviewResponse || { canonical_print_key: 'D major', action: 'create', existing_resource_id: null, has_pdf: false }
+      );
+    }
+    if (u.endsWith('/api/arrangements/100/resources') && method === 'GET') {
+      return jsonResponse(200, resourcesListResponse || []);
+    }
+    if (u.endsWith('/api/arrangements/100/publish') && method === 'POST') {
+      return jsonResponse(200, publishResponse || { arrangement: { status: 'published' }, resource: { id: 55, print_key: 'D major' } });
+    }
+    if (u.endsWith('/api/resources/55/generate-pdf') && method === 'POST') {
+      return jsonResponse(200, generatePdfResponse || { r2_object_key: 'resource_55.pdf' });
+    }
     return jsonResponse(404, { error: `Unhandled mock URL: ${u}` });
   });
 }
+
 
 /** Select the song, open the existing Arrangement, wait for the review screen's Source Key section to render. */
 async function openExistingArrangement() {
@@ -325,4 +341,117 @@ test('loading a two-candidate screen and not confirming makes no PUT request at 
 
   const putCalls = global.fetch.mock.calls.filter(([url, opts]) => String(url).endsWith('/api/arrangements/100') && (opts.method || 'GET').toUpperCase() === 'PUT');
   expect(putCalls).toHaveLength(0); // viewing alone writes nothing
+});
+
+/**
+ * Print Key (Slice 3, 19 Sep 2026) — Print Key input prefill, debounced
+ * print-key-preview, the Resources list, and the publish request now
+ * carrying { print_key }. default_teaching_key input is confirmed removed
+ * from the paste screen entirely.
+ */
+
+const CONFIRMED_D_MAJOR = { tonic_pc: 2, tonic_spelling: 'D', mode: 'major', source: 'tutor_entered', confirmed: true };
+
+test('the paste screen no longer has a Default teaching key input', async () => {
+  installFetchMock();
+  render(<ArrangementBuilder />);
+  const searchInput = await screen.findByPlaceholderText('Search songs by title, artist, or ID...');
+  userEvent.type(searchInput, 'Test Song');
+  fireEvent.click(await screen.findByText('Test Song — Test Artist'));
+  await screen.findByLabelText('Paste chord/lyric sheet');
+  expect(screen.queryByLabelText(/Default teaching key/)).not.toBeInTheDocument();
+});
+
+test('Print Key input is prefilled from a confirmed transposition_origin, and print-key-preview reports "create"', async () => {
+  installReopenFetchMock({
+    existingOrigin: CONFIRMED_D_MAJOR,
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: 'major' },
+  });
+
+  await openExistingArrangement();
+
+  expect(screen.getByLabelText('Print Key')).toHaveValue('D major');
+  await waitFor(() => expect(screen.getByText(/Will CREATE a new print at D major/)).toBeInTheDocument());
+});
+
+test('Print Key input stays empty when transposition_origin is unconfirmed (no prefill)', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: null },
+  });
+
+  await openExistingArrangement();
+
+  expect(screen.getByLabelText('Print Key')).toHaveValue('');
+});
+
+test('Publish button is disabled while Print Key is empty', async () => {
+  installReopenFetchMock({
+    existingOrigin: { tonic_pc: 2, tonic_spelling: 'D', mode: null, source: 'legacy_default_teaching_key', confirmed: false },
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: null },
+  });
+
+  await openExistingArrangement();
+
+  expect(screen.getByText('Publish PDF')).toBeDisabled();
+});
+
+test('print-key-preview reports "update" with existing_resource_id/has_pdf once a Resource already exists for that key', async () => {
+  installReopenFetchMock({
+    existingOrigin: CONFIRMED_D_MAJOR,
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: 'major' },
+    printKeyPreviewResponse: { canonical_print_key: 'D major', action: 'update', existing_resource_id: 7, has_pdf: true },
+  });
+
+  await openExistingArrangement();
+
+  await waitFor(() =>
+    expect(screen.getByText(/Will UPDATE the existing print at D major \(PDF generated\)/)).toBeInTheDocument()
+  );
+});
+
+test('Existing prints list renders has_pdf as "PDF generated" / "No PDF yet"', async () => {
+  installReopenFetchMock({
+    existingOrigin: CONFIRMED_D_MAJOR,
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: 'major' },
+    resourcesListResponse: [
+      { resource_id: 1, print_key: 'D major', updated_at: '2026-09-15', has_pdf: true },
+      { resource_id: 2, print_key: 'E major', updated_at: '2026-09-16', has_pdf: false },
+    ],
+  });
+
+  await openExistingArrangement();
+
+  await waitFor(() => expect(screen.getByText(/D major — updated 2026-09-15 — PDF generated/)).toBeInTheDocument());
+  expect(screen.getByText(/E major — updated 2026-09-16 — No PDF yet/)).toBeInTheDocument();
+});
+
+test('clicking Publish sends print_key in the request body, then refreshes the preview and resources list on success', async () => {
+  installReopenFetchMock({
+    existingOrigin: CONFIRMED_D_MAJOR,
+    suggestion: { tonic_spelling: 'D', tonic_pc: 2, mode: 'major' },
+    publishResponse: { arrangement: { status: 'published' }, resource: { id: 55, print_key: 'D major' } },
+    generatePdfResponse: { r2_object_key: 'resource_55.pdf' },
+  });
+
+  await openExistingArrangement();
+  await waitFor(() => expect(screen.getByText(/Will CREATE a new print at D major/)).toBeInTheDocument());
+
+  fireEvent.click(screen.getByText('Publish PDF'));
+
+  await waitFor(() => expect(screen.getByText('Published — PDF ready.')).toBeInTheDocument());
+
+  const publishCall = global.fetch.mock.calls.find(([url]) => String(url).endsWith('/api/arrangements/100/publish'));
+  expect(publishCall).toBeDefined();
+  expect(JSON.parse(publishCall[1].body)).toEqual({ print_key: 'D major' });
+
+  // Preview re-fetched after publish (this session's mock always answers the
+  // same "create" response, but the point verified here is that the call
+  // actually happens again post-publish, not just once on load).
+  const previewCalls = global.fetch.mock.calls.filter(([url]) => String(url).endsWith('/api/arrangements/100/print-key-preview'));
+  expect(previewCalls.length).toBeGreaterThan(1);
+  const resourcesCalls = global.fetch.mock.calls.filter(
+    ([url, opts]) => String(url).endsWith('/api/arrangements/100/resources') && (opts.method || 'GET').toUpperCase() === 'GET'
+  );
+  expect(resourcesCalls.length).toBeGreaterThan(1);
 });

@@ -29,6 +29,17 @@ function tokenizeChordRowString(rowString) {
   return tokens;
 }
 
+/**
+ * Plain string join of a confirmed transposition_origin's spelling + mode
+ * (e.g. "Bb minor") for the Print Key input's initial prefill — the only
+ * client-side key handling this component does; no parsing/canonicalization
+ * of its own (that's the server's job, via print-key-preview/publish).
+ */
+function formatKeyPrefill(origin) {
+  if (!origin || !origin.tonic_spelling) return '';
+  return origin.mode ? `${origin.tonic_spelling} ${origin.mode}` : origin.tonic_spelling;
+}
+
 /** A single draggable chord token, absolutely positioned by column. */
 function ChordToken({ symbol, position, charWidth, ambiguous, onCommitPosition }) {
   const [dragging, setDragging] = useState(false);
@@ -180,10 +191,8 @@ const ArrangementBuilder = () => {
   const [songQuery, setSongQuery] = useState('');
   const [selectedSong, setSelectedSong] = useState(null);
   const [titleInput, setTitleInput] = useState('');
-  const [defaultTeachingKeyInput, setDefaultTeachingKeyInput] = useState('');
 
-  // Source Key (Key Model Phase 1) — suggest-then-confirm, alongside the
-  // existing (unchanged) default_teaching_key field. sourceKeySuggestion is
+  // Source Key (Key Model Phase 1) — suggest-then-confirm. sourceKeySuggestion is
   // whatever GET /api/arrangements/song-key-suggestion returned for the
   // selected song; sourceKeyWasSuggested tracks whether the current input
   // still matches that suggestion verbatim (accepted as-is) or has been
@@ -236,6 +245,16 @@ const ArrangementBuilder = () => {
   const [publishMessage, setPublishMessage] = useState('');
   const [publishedPdfUrl, setPublishedPdfUrl] = useState(null);
 
+  // Print Key (Slice 3) — prefilled once, client-side, from the loaded
+  // Arrangement's confirmed transposition_origin; every other resolution
+  // (parsing/mode/canonicalization) happens server-side via print-key-preview
+  // and publish, never duplicated here.
+  const [printKeyInput, setPrintKeyInput] = useState('');
+  const [printKeyPreview, setPrintKeyPreview] = useState(null); // { canonical_print_key, action, existing_resource_id, has_pdf } | null
+  const [printKeyPreviewStatus, setPrintKeyPreviewStatus] = useState('idle'); // idle | loading | error
+  const [printKeyPreviewError, setPrintKeyPreviewError] = useState('');
+  const [resourcesList, setResourcesList] = useState(null); // null = not loaded yet
+
   // Charwidth measured once for the whole review screen.
   const measureRef = useRef(null);
   const [charWidth, setCharWidth] = useState(8);
@@ -253,6 +272,71 @@ const ArrangementBuilder = () => {
       if (rect.width) setCharWidth(rect.width);
     }
   }, [screen]);
+
+  /** GET the Resources list for the currently-loaded Arrangement. Reusable so it can also be re-called after a publish cycle completes. */
+  const fetchResourcesList = async (arrangementId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/arrangements/${arrangementId}/resources`, { credentials: 'include' });
+      const data = res.ok ? await res.json() : [];
+      setResourcesList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setResourcesList([]);
+    }
+  };
+
+  /** POST a print-key-preview for the current input. Reusable so it can also be re-called after a publish cycle completes. Read-only on the server — writes nothing. */
+  const fetchPrintKeyPreview = async (arrangementId, keyText) => {
+    if (!keyText || !keyText.trim()) {
+      setPrintKeyPreview(null);
+      setPrintKeyPreviewError('');
+      setPrintKeyPreviewStatus('idle');
+      return;
+    }
+    setPrintKeyPreviewStatus('loading');
+    setPrintKeyPreviewError('');
+    try {
+      const res = await fetch(`${API_URL}/api/arrangements/${arrangementId}/print-key-preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ print_key: keyText }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPrintKeyPreview(null);
+        setPrintKeyPreviewError(data.error || 'Failed to preview print key');
+        setPrintKeyPreviewStatus('error');
+        return;
+      }
+      setPrintKeyPreview(data);
+      setPrintKeyPreviewStatus('idle');
+    } catch (err) {
+      setPrintKeyPreview(null);
+      setPrintKeyPreviewError('Failed to connect to server');
+      setPrintKeyPreviewStatus('error');
+    }
+  };
+
+  // Resources list loads whenever the publish UI opens (review screen, an
+  // Arrangement already saved at least once).
+  useEffect(() => {
+    if (screen === 'review' && loadedArrangementId != null) {
+      fetchResourcesList(loadedArrangementId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, loadedArrangementId]);
+
+  // Print Key preview: debounced on input change, and fires once on screen
+  // load too (loadedArrangementId transitions from null to a value at the
+  // same moment printKeyInput is first prefilled).
+  useEffect(() => {
+    if (screen !== 'review' || loadedArrangementId == null) return undefined;
+    const handle = setTimeout(() => {
+      fetchPrintKeyPreview(loadedArrangementId, printKeyInput);
+    }, 400);
+    return () => clearTimeout(handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printKeyInput, loadedArrangementId, screen]);
 
   const filteredSongs = useMemo(() => {
     if (!songQuery.trim()) return [];
@@ -323,6 +407,9 @@ const ArrangementBuilder = () => {
     setSavedUnconfirmedOrigin(null);
     setConfirmKeyStatus('idle');
     setConfirmKeyError('');
+    setPrintKeyInput('');
+    setPrintKeyPreview(null);
+    setResourcesList(null);
   };
 
   const handleLoadArrangement = async (id) => {
@@ -336,7 +423,6 @@ const ArrangementBuilder = () => {
       }
       setLoadedArrangementId(data.id);
       setTitleInput(data.title || '');
-      setDefaultTeachingKeyInput(data.default_teaching_key || '');
 
       // Source Key: only a genuinely CONFIRMED transposition_origin skips the
       // fresh-suggestion fetch. An absent or unconfirmed one (including a
@@ -347,18 +433,22 @@ const ArrangementBuilder = () => {
       setTranspositionOrigin(existingOrigin || null);
       setConfirmKeyStatus('idle');
       setConfirmKeyError('');
+      setPrintKeyPreview(null);
+      setResourcesList(null);
 
       if (existingOrigin && existingOrigin.confirmed === true) {
         setSourceKeyInput(existingOrigin.tonic_spelling || '');
         setSourceKeySuggestion(null);
         setSourceKeyWasSuggested(false);
         setSavedUnconfirmedOrigin(null);
+        setPrintKeyInput(formatKeyPrefill(existingOrigin));
       } else {
         const savedCandidate = existingOrigin && existingOrigin.tonic_spelling ? existingOrigin : null;
         setSourceKeySuggestion(null);
         setSourceKeyWasSuggested(false);
         setSourceKeyInput(savedCandidate ? savedCandidate.tonic_spelling : '');
         setSavedUnconfirmedOrigin(savedCandidate);
+        setPrintKeyInput('');
         try {
           const keyRes = await fetch(`${API_URL}/api/arrangements/song-key-suggestion?song_id=${encodeURIComponent(data.song_id)}`, {
             credentials: 'include',
@@ -555,20 +645,17 @@ const ArrangementBuilder = () => {
     const isUpdate = loadedArrangementId != null;
     const url = isUpdate ? `${API_URL}/api/arrangements/${loadedArrangementId}` : `${API_URL}/api/arrangements`;
     const method = isUpdate ? 'PUT' : 'POST';
-    // default_teaching_key is omitted (not sent as null/empty) when the input is
-    // empty, so a routine save never silently clears an existing key.
-    const defaultTeachingKeyField = defaultTeachingKeyInput
-      ? { default_teaching_key: defaultTeachingKeyInput }
-      : {};
+    // default_teaching_key is retired from this screen (Print Key slice) —
+    // no longer read or sent, for new or edited Arrangements. The DB column
+    // and any existing stored values are untouched server-side.
     const payload = isUpdate
-      ? { title: titleInput || null, body_json: bodyJson, ...defaultTeachingKeyField }
+      ? { title: titleInput || null, body_json: bodyJson }
       : {
           song_id: selectedSong.id,
           title: titleInput || null,
           body_json: bodyJson,
           import_source_text: originalRawText,
           import_source_type: 'manual_paste',
-          ...defaultTeachingKeyField,
         };
 
     try {
@@ -627,6 +714,10 @@ const ArrangementBuilder = () => {
       }
       setTranspositionOrigin(data.body_json.transposition_origin);
       setConfirmKeyStatus('success');
+      // Same trivial string-join prefill as the initial-load path (5.5.12/
+      // Slice 3) — only when the tutor hasn't already typed something of
+      // their own into Print Key.
+      setPrintKeyInput((prev) => (prev ? prev : formatKeyPrefill(data.body_json.transposition_origin)));
     } catch (err) {
       setConfirmKeyStatus('error');
       setConfirmKeyError('Failed to connect to server');
@@ -637,7 +728,6 @@ const ArrangementBuilder = () => {
     setScreen('paste');
     setSelectedSong(null);
     setTitleInput('');
-    setDefaultTeachingKeyInput('');
     setSourceKeySuggestion(null);
     setSourceKeyInput('');
     setSourceKeyWasSuggested(false);
@@ -661,13 +751,21 @@ const ArrangementBuilder = () => {
     setPublishState('idle');
     setPublishMessage('');
     setPublishedPdfUrl(null);
+    setPrintKeyInput('');
+    setPrintKeyPreview(null);
+    setPrintKeyPreviewStatus('idle');
+    setPrintKeyPreviewError('');
+    setResourcesList(null);
   };
 
   /**
-   * Single "Publish PDF" action: POST .../publish, then (if that succeeds)
-   * immediately POST .../resources/<id>/generate-pdf in the same click. No
-   * retry state of its own - clicking again just re-runs the full sequence,
-   * since both endpoints are already idempotent.
+   * Single "Publish PDF" action: POST .../publish (now with { print_key }),
+   * then (if that succeeds) immediately POST .../resources/<id>/generate-pdf
+   * in the same click. No retry state of its own - clicking again just
+   * re-runs the full sequence, since both endpoints are already idempotent.
+   * After success or partial success, refreshes both the Resources list and
+   * the Print Key preview (Slice 3) so the tutor sees the new/updated
+   * Resource reflected immediately, not just on next reload.
    */
   const handlePublishPdf = async () => {
     setPublishState('publishing');
@@ -678,7 +776,9 @@ const ArrangementBuilder = () => {
     try {
       const res = await fetch(`${API_URL}/api/arrangements/${loadedArrangementId}/publish`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ print_key: printKeyInput }),
       });
       publishData = await res.json();
       if (!res.ok) {
@@ -703,13 +803,19 @@ const ArrangementBuilder = () => {
         // Partial success: the Arrangement is validly published, just no PDF yet.
         setPublishState('partial');
         setPublishMessage(genData.error || 'Failed to generate PDF');
+        fetchResourcesList(loadedArrangementId);
+        fetchPrintKeyPreview(loadedArrangementId, printKeyInput);
         return;
       }
       setPublishState('success');
       setPublishedPdfUrl(`https://pub-e43364bf5aa34598832e4b2e860e074d.r2.dev/${genData.r2_object_key}`);
+      fetchResourcesList(loadedArrangementId);
+      fetchPrintKeyPreview(loadedArrangementId, printKeyInput);
     } catch (err) {
       setPublishState('partial');
       setPublishMessage('Failed to connect to server');
+      fetchResourcesList(loadedArrangementId);
+      fetchPrintKeyPreview(loadedArrangementId, printKeyInput);
     }
   };
 
@@ -793,20 +899,6 @@ const ArrangementBuilder = () => {
                 className="ab-title-input"
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
-              />
-            </div>
-
-            <div className="ab-section">
-              <label className="ab-label" htmlFor="ab-teaching-key-input">
-                Default teaching key (optional)
-              </label>
-              <input
-                id="ab-teaching-key-input"
-                type="text"
-                className="ab-teaching-key-input"
-                value={defaultTeachingKeyInput}
-                onChange={(e) => setDefaultTeachingKeyInput(e.target.value)}
-                placeholder="e.g., C, Am, F#"
               />
             </div>
 
@@ -965,10 +1057,45 @@ const ArrangementBuilder = () => {
 
       {loadedArrangementId != null && (
         <div className="ab-section ab-publish-section">
+          <label className="ab-label" htmlFor="ab-print-key-input">
+            Print Key
+          </label>
+          <input
+            id="ab-print-key-input"
+            type="text"
+            className="ab-teaching-key-input"
+            value={printKeyInput}
+            onChange={(e) => setPrintKeyInput(e.target.value)}
+            placeholder="e.g., D, D major, D♭ minor"
+          />
+
+          {printKeyPreviewStatus === 'loading' && <span className="ab-hint"> Checking…</span>}
+          {printKeyPreviewError && <div className="error-banner">{printKeyPreviewError}</div>}
+          {printKeyPreview && (
+            <div className="ab-hint">
+              {printKeyPreview.action === 'update'
+                ? `Will UPDATE the existing print at ${printKeyPreview.canonical_print_key} (${
+                    printKeyPreview.has_pdf ? 'PDF generated' : 'no PDF yet'
+                  })`
+                : `Will CREATE a new print at ${printKeyPreview.canonical_print_key}`}
+            </div>
+          )}
+
+          {resourcesList && resourcesList.length > 0 && (
+            <div className="ab-resources-list">
+              <label className="ab-label">Existing prints</label>
+              {resourcesList.map((r) => (
+                <div key={r.resource_id} className="ab-resource-item">
+                  {r.print_key} — updated {r.updated_at} — {r.has_pdf ? 'PDF generated' : 'No PDF yet'}
+                </div>
+              ))}
+            </div>
+          )}
+
           <button
             className="btn-primary"
             onClick={handlePublishPdf}
-            disabled={publishState === 'publishing' || publishState === 'generating'}
+            disabled={publishState === 'publishing' || publishState === 'generating' || !printKeyInput.trim()}
           >
             {publishState === 'publishing'
               ? 'Publishing…'
