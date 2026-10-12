@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 
 import SongDetailModal from "./SongDetailModal";
 import AdminLogin from "./components/AdminLogin";
+import { GetSongBPMCredit } from "./components/TempoCredit";
 import AdminDashboard from "./components/AdminDashboard";
 
 import logo from "./assets/sou-logo.png";
@@ -500,6 +501,10 @@ function App() {
             </tbody>
           </table>
         </div>
+
+        <footer style={{ marginTop: "1rem", textAlign: "center" }}>
+          <GetSongBPMCredit />
+        </footer>
 
         {/* Song Detail Modal */}
         {selectedSong && (

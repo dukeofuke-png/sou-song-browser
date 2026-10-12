@@ -1,5 +1,6 @@
 import React from "react";
 import "./SongDetailModal.css";
+import { GetSongBPMCredit, bpmEstimateLabel } from "./components/TempoCredit";
 
 function SongDetailModal({ song, onClose }) {
   if (!song) return null;
@@ -382,7 +383,14 @@ function SongDetailModal({ song, onClose }) {
               {song.bpm && (
                 <div className="detail-item">
                   <span className="detail-label">BPM</span>
-                  <span className="detail-value">{song.bpm}</span>
+                  <span className="detail-value">
+                    {song.bpm}
+                    {bpmEstimateLabel(song.bpmSource) && (
+                      <span className="bpm-estimate" style={{ marginLeft: "0.4rem", fontSize: "0.8rem", opacity: 0.75 }}>
+                        ≈ {bpmEstimateLabel(song.bpmSource)}
+                      </span>
+                    )}
+                  </span>
                 </div>
               )}
               {song.tempoLabel && (
@@ -416,6 +424,7 @@ function SongDetailModal({ song, onClose }) {
                 </div>
               )}
             </div>
+            {(song.bpm || song.originalKey) && <GetSongBPMCredit style={{ display: "block", marginTop: "0.5rem" }} />}
           </section>
 
           {/* 3. TEACHING NOTES */}

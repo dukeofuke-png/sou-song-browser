@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FiEye, FiEyeOff, FiSearch, FiFilter, FiDownload, FiPlus, FiSave, FiEdit2, FiMenu, FiMusic, FiChevronDown, FiChevronUp, FiLock, FiX } from 'react-icons/fi';
 import './ManageSOUDatabase.css';
+import { GetSongBPMCredit } from './TempoCredit';
 
 const ManageSOUDatabase = () => {
   const [songs, setSongs] = useState([]);
@@ -1563,6 +1564,9 @@ const ManageSOUDatabase = () => {
               )}
             </tbody>
           </table>
+          <div style={{ padding: "0.5rem 0" }}>
+            <GetSongBPMCredit />
+          </div>
         </div>
       )}
     </div>
