@@ -385,9 +385,9 @@ function SongDetailModal({ song, onClose }) {
                   <span className="detail-label">BPM</span>
                   <span className="detail-value">
                     {song.bpm}
-                    {bpmEstimateLabel(song.bpmSource) && (
+                    {bpmEstimateLabel(song.bpmDisplaySource) && (
                       <span className="bpm-estimate" style={{ marginLeft: "0.4rem", fontSize: "0.8rem", opacity: 0.75 }}>
-                        ≈ {bpmEstimateLabel(song.bpmSource)}
+                        ≈ {bpmEstimateLabel(song.bpmDisplaySource)}
                       </span>
                     )}
                   </span>

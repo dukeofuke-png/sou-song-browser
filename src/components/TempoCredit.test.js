@@ -24,13 +24,13 @@ describe("SongDetailModal tempo and credit", () => {
   const base = { id: "t1", title: "Test Song", artist: "Test Artist" };
 
   test("an estimate shows its source and the credit link", () => {
-    render(<SongDetailModal song={{ ...base, bpm: 118, bpmSource: "deezer" }} onClose={() => {}} />);
+    render(<SongDetailModal song={{ ...base, bpm: 118, bpmDisplaySource: "deezer" }} onClose={() => {}} />);
     expect(screen.getByText(/estimate \(Deezer\), unconfirmed/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "GetSongBPM.com" })).toBeInTheDocument();
   });
 
   test("a manual tempo shows no estimate label", () => {
-    render(<SongDetailModal song={{ ...base, bpm: 100, bpmSource: "manual" }} onClose={() => {}} />);
+    render(<SongDetailModal song={{ ...base, bpm: 100, bpmDisplaySource: "manual" }} onClose={() => {}} />);
     expect(screen.getByText("100")).toBeInTheDocument();
     expect(screen.queryByText(/estimate/)).not.toBeInTheDocument();
   });
@@ -39,4 +39,9 @@ describe("SongDetailModal tempo and credit", () => {
     render(<SongDetailModal song={base} onClose={() => {}} />);
     expect(screen.queryByRole("link", { name: "GetSongBPM.com" })).not.toBeInTheDocument();
   });
+});
+
+test("the legacy bpmSource field (a number from an old column) is ignored", () => {
+  render(<SongDetailModal song={{ id: "t2", title: "T", artist: "A", bpm: 100, bpmSource: "107.7", bpmDisplaySource: "manual" }} onClose={() => {}} />);
+  expect(screen.queryByText(/estimate/)).not.toBeInTheDocument();
 });
