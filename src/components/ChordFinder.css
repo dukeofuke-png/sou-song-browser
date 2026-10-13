@@ -1,0 +1,208 @@
+/* ChordFinder (WP-5). Working surface black on white (design §1); brand colours (D7) only
+   for the default marker: yellow #FDF056 highlight with black text, Hot Pink #FB079A edge. */
+.chord-finder-page {
+  padding: 24px;
+  max-width: 1100px;
+  color: #000;
+}
+
+.chord-finder-page .page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cf-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.cf-controls label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  gap: 4px;
+}
+
+.cf-controls .cf-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.cf-section {
+  margin-bottom: 28px;
+}
+
+.cf-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cf-form label {
+  font-weight: 600;
+}
+
+.cf-form input {
+  padding: 6px 10px;
+  font-size: 16px;
+  min-width: 200px;
+}
+
+.cf-btn {
+  padding: 6px 12px;
+  border: 1px solid #000;
+  background: #fff;
+  color: #000;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.cf-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cf-btn-quiet {
+  border-color: #999;
+  font-size: 13px;
+}
+
+.cf-shapes,
+.cf-readings {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cf-shape {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+}
+
+.cf-shape.is-default {
+  border: 3px solid #FB079A;
+}
+
+.cf-frets {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, monospace;
+  font-size: 14px;
+}
+
+.cf-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.cf-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  background: #f6f6f6;
+  color: #000;
+}
+
+.cf-badge-default {
+  background: #FDF056;
+  border-color: #000;
+  font-weight: 600;
+}
+
+.cf-badge-warn {
+  background: #fff;
+  border-color: #EF0E3F;
+}
+
+.cf-reading {
+  display: flex;
+  gap: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 10px;
+  min-width: 240px;
+}
+
+.cf-name {
+  font-size: 20px;
+  font-weight: 700;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  color: #000;
+  font-family: inherit;
+}
+
+.cf-precise {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.cf-error {
+  color: #b00020;
+}
+
+.cf-warning {
+  color: #000;
+  background: #FDF056;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.cf-notice {
+  color: #000;
+  border-left: 4px solid #0CCBBE;
+  padding-left: 8px;
+}
+
+.cf-muted {
+  color: #555;
+}
+
+.cf-result-title .cf-count {
+  font-weight: 400;
+  font-size: 16px;
+  color: #555;
+}
+
+.cf-defaults {
+  border-collapse: collapse;
+}
+
+.cf-defaults th,
+.cf-defaults td {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+@media (max-width: 600px) {
+  .chord-finder-page {
+    padding: 16px;
+  }
+  .cf-form input {
+    min-width: 0;
+    flex: 1;
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiHome, FiSearch, FiMusic, FiSettings, FiLogOut, FiChevronDown, FiChevronRight, FiUpload, FiMessageSquare, FiEdit3, FiCalendar } from 'react-icons/fi';
+import { FiHome, FiSearch, FiMusic, FiSettings, FiLogOut, FiChevronDown, FiChevronRight, FiUpload, FiMessageSquare, FiEdit3, FiCalendar, FiGrid } from 'react-icons/fi';
 import './AdminLayout.css';
 
 /**
@@ -38,6 +38,11 @@ function AdminLayout({ children, activePage, onNavigate, onLogout }) {
       id: 'arrangement-builder', 
       icon: <FiEdit3 />, 
       label: 'Arrangement Builder' 
+    },
+    {
+      id: 'chord-finder',
+      icon: <FiGrid />,
+      label: 'Chord Finder'
     },
     { 
       id: 'lesson-planning', 

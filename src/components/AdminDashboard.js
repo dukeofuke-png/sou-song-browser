@@ -7,6 +7,7 @@ import SongEditor from './SongEditor';
 import ConversationWorkspace from './ConversationWorkspace';
 import ArrangementBuilder from './ArrangementBuilder';
 import LessonPlanning from './LessonPlanning';
+import ChordFinder from './ChordFinder';
 import { FiMusic, FiHome, FiFileText } from 'react-icons/fi';
 import './AdminDashboard.css';
 
@@ -191,6 +192,9 @@ const AdminDashboard = ({ onLogout }) => {
       
       case 'lesson-planning':
         return <LessonPlanning />;
+
+      case 'chord-finder':
+        return <ChordFinder />;
       
       case 'settings':
         return (
